@@ -4,13 +4,14 @@ import { ArrowRight, Loader2, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface UrlInputProps {
-  onSubmit: (url: string) => void;
+  onSubmit: (url: string, deepCrawl: boolean) => void;
   isLoading: boolean;
   resetKey?: number;
 }
 
 export function UrlInput({ onSubmit, isLoading, resetKey }: UrlInputProps) {
   const [url, setUrl] = useState("");
+  const [deepCrawl, setDeepCrawl] = useState(false);
 
   useEffect(() => {
     if (resetKey) setUrl("");
@@ -23,7 +24,7 @@ export function UrlInput({ onSubmit, isLoading, resetKey }: UrlInputProps) {
     const trimmed = url.trim();
     if (!trimmed) return;
     const normalized = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-    onSubmit(normalized);
+    onSubmit(normalized, deepCrawl);
   }
 
   // ─── Render ───
@@ -82,6 +83,26 @@ export function UrlInput({ onSubmit, isLoading, resetKey }: UrlInputProps) {
             )}
           </button>
         </div>
+      </div>
+
+      <div className="flex items-center justify-center gap-2">
+        <button
+          type="button"
+          onClick={() => setDeepCrawl((v) => !v)}
+          className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+            deepCrawl ? "bg-[var(--g-accent)]" : "bg-[var(--g-surface-3)]"
+          }`}
+        >
+          <span
+            className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+              deepCrawl ? "translate-x-4.5" : "translate-x-0.5"
+            }`}
+          />
+        </button>
+        <span className="text-xs text-[var(--g-sub)]">
+          Busca profunda
+          <span className="text-[var(--g-muted)]"> — segue links para encontrar mais vídeos</span>
+        </span>
       </div>
 
       <QuickExamples onSelect={setUrl} />

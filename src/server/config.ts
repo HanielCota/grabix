@@ -1,15 +1,31 @@
-export interface AppConfig {
-  userAgent: string;
-  limits: {
-    fetchTimeoutMs: number;
-    maxHtmlSizeBytes: number;
-    maxAssets: number;
-    maxFileSizeBytes: number;
-    maxConcurrentDownloads: number;
-  };
-}
+import { z } from "zod";
 
-export const appConfig: AppConfig = {
+// ─── Config schema ───
+
+const limitsSchema = z.object({
+  fetchTimeoutMs: z.number().int().positive(),
+  maxHtmlSizeBytes: z.number().int().positive(),
+  maxAssets: z.number().int().positive().max(500),
+  maxFileSizeBytes: z.number().int().positive(),
+  maxConcurrentDownloads: z.number().int().positive().max(10),
+});
+
+const crawlSchema = z.object({
+  maxPages: z.number().int().positive().max(50),
+  maxDepth: z.number().int().nonnegative().max(3),
+  concurrency: z.number().int().positive().max(10),
+  sameDomainOnly: z.boolean(),
+});
+
+const appConfigSchema = z.object({
+  userAgent: z.string().min(1),
+  limits: limitsSchema,
+  crawl: crawlSchema,
+});
+
+export type AppConfig = z.infer<typeof appConfigSchema>;
+
+export const appConfig: AppConfig = appConfigSchema.parse({
   userAgent: "Mozilla/5.0 (compatible; Grabix/1.0; +https://github.com/HanielCota/grabix)",
   limits: {
     fetchTimeoutMs: 15_000,
@@ -18,4 +34,10 @@ export const appConfig: AppConfig = {
     maxFileSizeBytes: 100 * 1024 * 1024, // 100 MB
     maxConcurrentDownloads: 5,
   },
-};
+  crawl: {
+    maxPages: 15,
+    maxDepth: 1,
+    concurrency: 3,
+    sameDomainOnly: true,
+  },
+});

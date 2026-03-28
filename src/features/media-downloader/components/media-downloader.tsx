@@ -42,6 +42,7 @@ const fadeSlide = {
 
 export function MediaDownloader() {
   const [state, setState] = useState<ViewState>({ status: "idle" });
+  const [isDeepCrawl, setIsDeepCrawl] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [analyzeCount, setAnalyzeCount] = useState(0);
   const [lastUrl, setLastUrl] = useState<string | null>(null);
@@ -58,20 +59,21 @@ export function MediaDownloader() {
 
   // ─── Handlers ───
 
-  async function handleAnalyze(url: string) {
+  async function handleAnalyze(url: string, deepCrawl = false) {
     if (!url?.trim()) return;
 
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
+    setIsDeepCrawl(deepCrawl);
     setState({ status: "loading", url });
 
     try {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, deepCrawl }),
         signal: controller.signal,
       });
 
@@ -154,7 +156,7 @@ export function MediaDownloader() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   type="button"
-                  onClick={() => handleAnalyze(lastUrl)}
+                  onClick={() => handleAnalyze(lastUrl, isDeepCrawl)}
                   className="inline-flex items-center gap-1.5 text-[var(--g-sub)] transition-colors hover:text-[var(--g-ink)]"
                 >
                   <History className="h-3.5 w-3.5" />
@@ -222,8 +224,14 @@ export function MediaDownloader() {
                   <Loader2 className="h-5 w-5 animate-spin text-[var(--g-ink)]" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-[var(--g-ink)]">Analisando página...</p>
-                  <p className="mt-1 text-xs text-[var(--g-muted)]">Buscando imagens e vídeos no HTML</p>
+                  <p className="text-sm font-semibold text-[var(--g-ink)]">
+                    {isDeepCrawl ? "Varrendo páginas..." : "Analisando página..."}
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--g-muted)]">
+                    {isDeepCrawl
+                      ? "Seguindo links para encontrar vídeos em outras páginas"
+                      : "Buscando imagens e vídeos no HTML"}
+                  </p>
                 </div>
               </div>
               <div className="mt-5 flex gap-6 text-xs text-[var(--g-sub)]">

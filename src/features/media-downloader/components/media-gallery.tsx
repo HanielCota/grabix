@@ -116,7 +116,12 @@ export function MediaGallery({ result }: MediaGalleryProps) {
             <h2 className="mt-1 text-2xl font-extrabold text-[var(--g-ink)]">
               {result.totalFound} mídia{result.totalFound !== 1 ? "s" : ""}
             </h2>
-            <p className="mt-1 text-sm text-[var(--g-sub)]">{host}</p>
+            <p className="mt-1 text-sm text-[var(--g-sub)]">
+              {host}
+              {result.pagesScanned && result.pagesScanned > 1 && (
+                <span className="ml-2 text-xs text-[var(--g-muted)]">({result.pagesScanned} páginas varridas)</span>
+              )}
+            </p>
           </div>
 
           <div className="flex gap-3">

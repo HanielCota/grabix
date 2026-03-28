@@ -115,7 +115,17 @@ function getEmbedInfo(iframeSrc: string): EmbedInfo | null {
 
 // ─── Main extraction ───
 
+export interface ExtractionResult {
+  assets: MediaAsset[];
+  links: string[];
+}
+
 export async function extractMediaFromHtml(html: string, baseUrl: string): Promise<MediaAsset[]> {
+  const result = await extractMediaAndLinks(html, baseUrl);
+  return result.assets;
+}
+
+export async function extractMediaAndLinks(html: string, baseUrl: string): Promise<ExtractionResult> {
   const $ = cheerio.load(html);
   const rawRefs: RawMediaRef[] = [];
 
@@ -235,7 +245,26 @@ export async function extractMediaFromHtml(html: string, baseUrl: string): Promi
     rawRefs.push({ url: ogImage, sourceTag: "meta[og:image]" });
   }
 
-  return await normalizeAndDeduplicate(rawRefs, baseUrl);
+  const assets = await normalizeAndDeduplicate(rawRefs, baseUrl);
+
+  // Extract links from the same parsed DOM (avoids double cheerio.load)
+  const links = new Set<string>();
+  $("a[href]").each((_, el) => {
+    const href = $(el).attr("href");
+    if (!href) return;
+
+    const resolved = resolveUrl(href, baseUrl);
+    if (!resolved) return;
+
+    try {
+      const u = new URL(resolved);
+      if (u.protocol !== "http:" && u.protocol !== "https:") return;
+      u.hash = "";
+      links.add(u.toString());
+    } catch {}
+  });
+
+  return { assets, links: Array.from(links) };
 }
 
 // ─── Helpers ───

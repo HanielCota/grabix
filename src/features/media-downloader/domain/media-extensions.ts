@@ -2,6 +2,8 @@ export const IMAGE_EXTENSION_LIST = ["jpg", "jpeg", "png", "webp", "gif", "svg"]
 export const VIDEO_EXTENSION_LIST = ["mp4", "webm", "mov", "m4v", "ogg", "avi"] as const;
 export const ALL_MEDIA_EXTENSION_LIST = [...IMAGE_EXTENSION_LIST, ...VIDEO_EXTENSION_LIST] as const;
 
+export type MediaExtension = (typeof ALL_MEDIA_EXTENSION_LIST)[number];
+
 // ─── Lookup sets ───
 
 const IMAGE_EXTENSIONS = new Set<string>(IMAGE_EXTENSION_LIST);
@@ -55,7 +57,7 @@ export function getExtensionFromUrl(url: string): string | null {
   }
 }
 
-export function isMediaExtension(ext: string): boolean {
+export function isMediaExtension(ext: string): ext is MediaExtension {
   if (!ext) return false;
   return ALL_MEDIA_EXTENSIONS.has(ext.toLowerCase());
 }
