@@ -23,7 +23,7 @@ async function fetchAssetStream(asset: MediaAsset): Promise<{ stream: Readable; 
     try {
       response = await fetch(url.toString(), {
         signal: controller.signal,
-        headers: { "User-Agent": "Grabix/1.0 (media-downloader)" },
+        headers: { "User-Agent": appConfig.userAgent },
       });
     } finally {
       clearTimeout(timeout);

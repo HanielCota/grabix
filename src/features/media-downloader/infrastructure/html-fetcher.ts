@@ -31,8 +31,9 @@ export async function fetchPageHtml(rawUrl: string): Promise<{
     response = await fetch(url.toString(), {
       signal: controller.signal,
       headers: {
-        "User-Agent": "Grabix/1.0 (media-downloader; +https://github.com/grabix)",
-        Accept: "text/html",
+        "User-Agent": appConfig.userAgent,
+        Accept: "text/html,application/xhtml+xml",
+        "Accept-Language": "en-US,en;q=0.9",
       },
       redirect: "follow",
     });

@@ -29,7 +29,7 @@ export async function downloadAsset(rawUrl: string): Promise<{
   try {
     response = await fetch(url.toString(), {
       signal: controller.signal,
-      headers: { "User-Agent": "Grabix/1.0 (media-downloader)" },
+      headers: { "User-Agent": appConfig.userAgent },
     });
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {

@@ -1,4 +1,5 @@
 export interface AppConfig {
+  userAgent: string;
   limits: {
     fetchTimeoutMs: number;
     maxHtmlSizeBytes: number;
@@ -9,6 +10,7 @@ export interface AppConfig {
 }
 
 export const appConfig: AppConfig = {
+  userAgent: "Mozilla/5.0 (compatible; Grabix/1.0; +https://github.com/HanielCota/grabix)",
   limits: {
     fetchTimeoutMs: 15_000,
     maxHtmlSizeBytes: 10 * 1024 * 1024, // 10 MB
