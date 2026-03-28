@@ -2,6 +2,16 @@ import { appConfig } from "@/server/config";
 import { validateDnsResolution, validateUrlFormat } from "@/server/security";
 import { Errors } from "../domain/errors";
 
+const HTTP_ERROR_MESSAGES: Record<number, string> = {
+  401: "Essa pagina exige login. O Grabix so acessa paginas publicas.",
+  403: "Acesso negado pelo servidor. A pagina pode estar protegida ou bloqueando bots.",
+  404: "Pagina nao encontrada. Verifica se a URL esta correta.",
+  429: "O servidor limitou as requisicoes. Tenta de novo em alguns minutos.",
+  500: "O servidor da pagina esta com erro interno. Tenta de novo mais tarde.",
+  502: "O servidor da pagina esta fora do ar (Bad Gateway).",
+  503: "O servidor da pagina esta indisponivel no momento. Tenta de novo depois.",
+};
+
 export async function fetchPageHtml(rawUrl: string): Promise<{
   html: string;
   resolvedUrl: string;
@@ -36,7 +46,8 @@ export async function fetchPageHtml(rawUrl: string): Promise<{
   }
 
   if (!response.ok) {
-    throw Errors.fetchFailed(`Status HTTP ${response.status}`);
+    const reason = HTTP_ERROR_MESSAGES[response.status] ?? `A pagina retornou status ${response.status}.`;
+    throw Errors.fetchFailed(reason);
   }
 
   const contentType = response.headers.get("content-type");
