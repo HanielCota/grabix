@@ -85,25 +85,33 @@ export function UrlInput({ onSubmit, isLoading, resetKey }: UrlInputProps) {
         </div>
       </div>
 
-      <div className="flex items-center justify-center gap-2">
-        <button
-          type="button"
-          onClick={() => setDeepCrawl((v) => !v)}
+      <button
+        type="button"
+        onClick={() => setDeepCrawl((v) => !v)}
+        className={`mx-auto flex items-center gap-2.5 rounded-xl border px-4 py-2.5 transition-all ${
+          deepCrawl
+            ? "border-[var(--g-accent-border)] bg-[var(--g-accent-soft)] shadow-[0_0_12px_rgba(255,255,255,0.06)]"
+            : "border-[var(--g-line)] bg-[var(--g-surface-2)] hover:border-[var(--g-line-hover)] hover:bg-[var(--g-surface-3)]"
+        }`}
+      >
+        <span
           className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
-            deepCrawl ? "bg-[var(--g-accent)]" : "bg-[var(--g-surface-3)]"
+            deepCrawl ? "bg-[var(--g-accent)]" : "bg-[var(--g-line-hover)]"
           }`}
         >
           <span
-            className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+            className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
               deepCrawl ? "translate-x-4.5" : "translate-x-0.5"
             }`}
           />
-        </button>
-        <span className="text-xs text-[var(--g-sub)]">
-          Busca profunda
-          <span className="text-[var(--g-muted)]"> — segue links para encontrar mais vídeos</span>
         </span>
-      </div>
+        <span className={`text-sm font-medium ${deepCrawl ? "text-[var(--g-ink)]" : "text-[var(--g-sub)]"}`}>
+          Busca profunda
+        </span>
+        <span className={`text-xs ${deepCrawl ? "text-[var(--g-sub)]" : "text-[var(--g-muted)]"}`}>
+          Segue links para encontrar mais vídeos
+        </span>
+      </button>
 
       <QuickExamples onSelect={setUrl} />
     </form>
