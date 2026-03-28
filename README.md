@@ -1,164 +1,336 @@
+<div align="center">
+
+<br />
+
+<img src="public/grabix-logo.svg" alt="Grabix" width="80" />
+
 # Grabix
 
+**Extract public media from any web page.**<br />
+Paste a URL. Grabix scans the HTML and pulls every image and video it finds.<br />
+Download one by one or grab everything as a ZIP.
+
+<br />
+
 [![CI](https://github.com/HanielCota/grabix/actions/workflows/ci.yml/badge.svg)](https://github.com/HanielCota/grabix/actions/workflows/ci.yml)
+&nbsp;
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-339933)](https://nodejs.org/)
-[![Next.js](https://img.shields.io/badge/Next.js-16-000000)](https://nextjs.org/)
-[![React](https://img.shields.io/badge/React-19-61DAFB)](https://react.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4)](https://tailwindcss.com/)
+&nbsp;
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+&nbsp;
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+&nbsp;
+[![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+&nbsp;
+[![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+&nbsp;
+[![Tailwind CSS 4](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 
-Open-source media extractor for public web pages. Paste a URL, Grabix analyzes the HTML and finds all public images and videos. Download individually or as a ZIP.
+<br />
 
-## Stack
+</div>
 
-| Technology | Version | Purpose |
+---
+
+<br />
+
+## Overview
+
+Grabix is an open-source web app that extracts publicly available media from any web page. It works entirely from the HTML source, without executing JavaScript or bypassing authentication.
+
+**How it works:**
+
+```
+URL  ->  fetch HTML  ->  parse with Cheerio  ->  extract media refs  ->  display gallery  ->  download
+```
+
+**What it supports:**
+
+- Images: `jpg` `jpeg` `png` `webp` `gif` `svg`
+- Videos: `mp4` `webm` `mov` `m4v`
+- Lazy-load attributes: `data-src`, `data-lazy-src`, `data-original`, `data-bg`, `srcset` variants
+- Noscript fallback images
+- Links (`<a href>`) pointing to media files
+
+<br />
+
+## Tech Stack
+
+<table>
+<tr>
+<td width="50%">
+
+**Frontend**
+| | Tech | Version |
 |---|---|---|
-| Next.js | 16 (App Router) | Framework |
-| React | 19 | UI |
-| TypeScript | 6 | Type safety |
-| Tailwind CSS | 4 | Styling |
-| Biome | 2.4 | Lint and formatting |
-| Zod | 4 | Schema validation |
-| Cheerio | 1.2 | HTML parsing |
-| Archiver | 7 | ZIP streaming |
-| Motion | 12 | Animations |
-| Lucide React | 1.7 | Icons |
+| Framework | Next.js (App Router) | 16 |
+| UI Library | React | 19 |
+| Language | TypeScript | 6 |
+| Styling | Tailwind CSS | 4 |
+| Animations | Motion | 12 |
+| Icons | Lucide React | 1.7 |
 
-## Requirements
+</td>
+<td width="50%">
 
-- [Node.js](https://nodejs.org/) >= 20.0.0
-- [npm](https://www.npmjs.com/)
+**Backend & Tooling**
+| | Tech | Version |
+|---|---|---|
+| Validation | Zod | 4 |
+| HTML Parser | Cheerio | 1.2 |
+| ZIP Streaming | Archiver | 7 |
+| Linter / Formatter | Biome | 2.4 |
+| Runtime | Node.js | >= 20 |
 
-## Getting Started
+</td>
+</tr>
+</table>
+
+<br />
+
+## Quick Start
 
 ```bash
-# Clone the repository
 git clone https://github.com/HanielCota/grabix.git
 cd grabix
-
-# Install dependencies
 npm install
-
-# Start development server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open **http://localhost:3000** and paste any public URL.
 
-## Scripts
+<br />
 
-| Script | Description |
-|---|---|
-| `npm run dev` | Start development server |
-| `npm run build` | Production build |
-| `npm start` | Start production server |
-| `npm run lint` | Check code with Biome |
-| `npm run lint:fix` | Auto-fix lint issues |
-| `npm run format` | Format code with Biome |
+## Available Scripts
+
+```bash
+npm run dev          # start dev server
+npm run build        # production build
+npm start            # start production server
+npm run lint         # check code with Biome
+npm run lint:fix     # auto-fix lint issues
+npm run format       # format code with Biome
+```
+
+<br />
 
 ## Project Structure
 
 ```
-src/
-  app/                          # Next.js App Router
-    api/analyze/                # POST - analyze page and return media
-    api/download/               # GET - individual download with validation
-    api/download-zip/           # POST - batch ZIP download via streaming
-  features/media-downloader/
-    components/                 # React components (client-side)
-    application/                # Use cases (analyze, download, zip)
-    domain/                     # Types, Zod schemas, extensions, errors
-    infrastructure/             # HTTP fetcher, media extractor (cheerio)
-  server/                       # Central config, security, API utilities
+grabix/
+├── src/
+│   ├── app/                              # Next.js App Router
+│   │   ├── api/
+│   │   │   ├── analyze/route.ts          # POST  - analyze page, return media list
+│   │   │   ├── download/route.ts         # GET   - download single file
+│   │   │   └── download-zip/route.ts     # POST  - download batch as ZIP
+│   │   ├── layout.tsx                    # root layout
+│   │   ├── page.tsx                      # homepage
+│   │   ├── error.tsx                     # error boundary (global)
+│   │   ├── not-found.tsx                 # 404 page
+│   │   └── globals.css                   # theme + CSS variables
+│   │
+│   ├── features/media-downloader/
+│   │   ├── components/                   # React UI (client-side)
+│   │   │   ├── media-downloader.tsx      # main container
+│   │   │   ├── media-gallery.tsx         # results grid + stats
+│   │   │   ├── media-card.tsx            # individual media card
+│   │   │   ├── media-filters.tsx         # image/video filter tabs
+│   │   │   ├── url-input.tsx             # URL input form
+│   │   │   └── error-message.tsx         # error alert
+│   │   ├── application/                  # use cases
+│   │   │   ├── analyze-page.ts           # orchestrates analysis
+│   │   │   ├── download-asset.ts         # single file download
+│   │   │   └── download-zip.ts           # ZIP stream generation
+│   │   ├── domain/                       # types, schemas, rules
+│   │   │   ├── types.ts                  # interfaces + Zod schemas
+│   │   │   ├── errors.ts                 # AppError + error factories
+│   │   │   └── media-extensions.ts       # allowed formats
+│   │   └── infrastructure/               # external integrations
+│   │       ├── html-fetcher.ts           # fetch + validate HTML
+│   │       └── media-extractor.ts        # Cheerio parsing
+│   │
+│   ├── server/                           # shared server utilities
+│   │   ├── config.ts                     # limits, timeouts
+│   │   ├── security.ts                   # SSRF protection, DNS validation
+│   │   └── api-utils.ts                  # error handler
+│   │
+│   └── proxy.ts                          # rate limiting + method enforcement
+│
+├── biome.json                            # Biome config
+├── next.config.ts                        # Next.js config + security headers
+├── tsconfig.json
+├── postcss.config.mjs
+└── package.json
 ```
+
+<br />
 
 ## Architecture
 
-- **Feature-based structure**: media-downloader code grouped by functionality, not file type
-- **Domain separated from infrastructure**: types and business rules don't depend on external libraries
-- **Security as a cross-cutting concern**: URL validation and anti-SSRF applied on all endpoints
-- **Streaming ZIP**: archiver generates ZIP incrementally without loading everything in memory
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Client (React 19)                                              │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐       │
+│  │ UrlInput │→ │ Downloader│→ │ Gallery  │→ │ MediaCard│       │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘       │
+└────────────────────────┬────────────────────────────────────────┘
+                         │ fetch
+┌────────────────────────▼────────────────────────────────────────┐
+│  Proxy (rate limit, method enforcement)                         │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+┌────────────────────────▼────────────────────────────────────────┐
+│  API Routes                                                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │ /api/analyze  │  │ /api/download│  │/api/download │          │
+│  │   (POST)      │  │   (GET)      │  │   -zip (POST)│          │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
+│         │                 │                  │                   │
+│  ┌──────▼─────────────────▼──────────────────▼───────┐          │
+│  │  Zod Schema Validation                            │          │
+│  └──────┬─────────────────┬──────────────────┬───────┘          │
+│         │                 │                  │                   │
+│  ┌──────▼───────┐  ┌──────▼───────┐  ┌──────▼───────┐          │
+│  │ Security     │  │ Security     │  │ Security     │          │
+│  │ (SSRF + DNS) │  │ (SSRF + DNS) │  │ (SSRF + DNS) │          │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
+│         │                 │                  │                   │
+│  ┌──────▼───────┐  ┌──────▼───────┐  ┌──────▼───────┐          │
+│  │ Cheerio      │  │ Stream       │  │ Archiver     │          │
+│  │ HTML Parse   │  │ + Size Limit │  │ ZIP Stream   │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Design decisions:**
+
+- **Feature-based** - all media-downloader code lives together, not scattered by file type
+- **Domain isolation** - types and business rules have zero external dependencies
+- **Security by default** - SSRF protection, DNS validation, and input validation on every endpoint
+- **Streaming** - ZIP is generated incrementally, never buffered in memory
+
+<br />
 
 ## Security
 
-- HTTP/HTTPS only
-- Blocked: localhost, 127.0.0.1, 0.0.0.0, private networks
-- DNS validation to prevent SSRF (DNS rebinding)
-- URL and domain revalidation on every download
-- Content-Type, file size, and quantity limits
-- Rate limiting on API routes
-- Security headers (CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy)
-- Input validation via Zod on all API endpoints
+<table>
+<tr><td>SSRF Protection</td><td>Private IPs, localhost, and link-local addresses are blocked. DNS is validated before every request to prevent rebinding.</td></tr>
+<tr><td>Input Validation</td><td>All API inputs go through Zod schemas. File names are checked for path traversal. Extensions are validated against an allowlist.</td></tr>
+<tr><td>Rate Limiting</td><td>30 requests/min per IP on all API routes via proxy middleware.</td></tr>
+<tr><td>Security Headers</td><td>CSP, X-Frame-Options (DENY), X-Content-Type-Options, Referrer-Policy, Permissions-Policy.</td></tr>
+<tr><td>Download Safety</td><td>Content-Type validation, file size limits (100 MB), byte-counting stream wrapper.</td></tr>
+<tr><td>Protocol</td><td>Only HTTP and HTTPS. No <code>file://</code>, <code>ftp://</code>, or other schemes.</td></tr>
+</table>
+
+<br />
 
 ## Configuration
 
-Limits and timeouts are in `src/server/config.ts`:
+All limits live in **`src/server/config.ts`** for easy tuning:
 
-| Parameter | Default | Description |
-|---|---|---|
-| `fetchTimeoutMs` | 15s | HTTP request timeout |
-| `maxHtmlSizeBytes` | 10 MB | Maximum HTML size |
-| `maxAssets` | 200 | Maximum media per analysis |
-| `maxFileSizeBytes` | 100 MB | Maximum file size |
-| `maxConcurrentDownloads` | 5 | Simultaneous ZIP downloads |
-
-## Lint and Formatting
-
-This project uses [Biome](https://biomejs.dev/) for both linting and formatting. There is no ESLint or Prettier.
-
-```bash
-# Check for issues
-npm run lint
-
-# Auto-fix issues
-npm run lint:fix
-
-# Format code
-npm run format
+```typescript
+export const appConfig: AppConfig = {
+  limits: {
+    fetchTimeoutMs: 15_000,            // 15s per request
+    maxHtmlSizeBytes: 10 * 1024 * 1024, // 10 MB max HTML
+    maxAssets: 200,                     // max media per analysis
+    maxFileSizeBytes: 100 * 1024 * 1024, // 100 MB per file
+    maxConcurrentDownloads: 5,          // parallel downloads in ZIP
+  },
+};
 ```
 
-Biome configuration is in `biome.json`.
+**Other customization points:**
 
-## Customization Points
+| What | Where |
+|---|---|
+| Theme / CSS variables | `src/app/globals.css` |
+| Security rules | `src/server/security.ts` |
+| Supported media formats | `src/features/media-downloader/domain/media-extensions.ts` |
+| API validation schemas | `src/features/media-downloader/domain/types.ts` |
+| Rate limit settings | `src/proxy.ts` |
 
-- **Config**: `src/server/config.ts` for limits, timeouts
-- **Styles**: `src/app/globals.css` for CSS variables and theme
-- **Security**: `src/server/security.ts` for URL validation rules
-- **Media types**: `src/features/media-downloader/domain/media-extensions.ts` for supported formats
-- **Schemas**: `src/features/media-downloader/domain/types.ts` for API validation
+<br />
+
+## Lint & Formatting
+
+Grabix uses [**Biome**](https://biomejs.dev/) for both linting and formatting. No ESLint, no Prettier.
+
+```bash
+npm run lint         # check
+npm run lint:fix     # auto-fix
+npm run format       # format
+```
+
+Key rules: `noUnusedImports`, `noUnusedVariables`, `useImportType`, `useConst` as errors. Organized imports on save. Config in `biome.json`.
+
+<br />
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, workflow, and guidelines.
+We welcome contributions! See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the full guide.
 
-## Branch Strategy
+**Quick version:**
 
-- `main` is the production branch
-- Feature branches: `feat/`, `fix/`, `docs/`, `chore/`
-- PRs are merged via **squash merge**
-- Branches are auto-deleted after merge
+```bash
+# 1. Fork & clone
+git clone https://github.com/YOUR_USERNAME/grabix.git
+cd grabix && npm install
+
+# 2. Create a branch
+git checkout -b feat/your-feature
+
+# 3. Make changes, then validate
+npm run lint && npm run build
+
+# 4. Commit & push
+git commit -m "feat: your feature description"
+git push origin feat/your-feature
+
+# 5. Open a PR against main
+```
+
+**Branch naming:** `feat/`, `fix/`, `docs/`, `chore/`<br />
+**Merge strategy:** squash merge, branches auto-deleted after merge<br />
+**Commits:** [Conventional Commits](https://www.conventionalcommits.org/)
+
+<br />
 
 ## Versioning
 
-This project follows [Semantic Versioning](https://semver.org/). See [CHANGELOG.md](CHANGELOG.md) for release history.
+This project follows [Semantic Versioning](https://semver.org/). See **[CHANGELOG.md](CHANGELOG.md)** for release history.
 
-## Security
+<br />
 
-See [SECURITY.md](SECURITY.md) for vulnerability reporting instructions.
+## Security Reports
 
-## License
+**Do not open public issues for vulnerabilities.** See **[SECURITY.md](SECURITY.md)** for responsible disclosure instructions.
 
-[MIT](LICENSE)
+<br />
 
 ## Roadmap
 
 - [ ] JavaScript rendering (Puppeteer/Playwright) for SPAs
-- [ ] More HTML selectors (`picture`, `og:image`, etc.)
+- [ ] Additional selectors (`<picture>`, `og:image`, CSS backgrounds)
 - [ ] Async queue for heavy analyses
-- [ ] Result persistence (database)
-- [ ] Session/user analysis history
+- [ ] Result persistence with database
+- [ ] User session and analysis history
 - [ ] Authentication and access control
-- [ ] Temporary storage (S3/R2) for result caching
+- [ ] Temporary storage (S3/R2) for caching
 - [ ] Structured logging and observability
-- [ ] Rate limiting per IP/user with Redis
+- [ ] Redis-backed rate limiting
 - [ ] Environment variable configuration
+
+<br />
+
+## License
+
+[MIT](LICENSE) &copy; [HanielCota](https://github.com/HanielCota)
+
+<div align="center">
+<br />
+<sub>Built with Next.js, React, TypeScript, and Tailwind CSS.</sub>
+<br />
+<br />
+</div>
