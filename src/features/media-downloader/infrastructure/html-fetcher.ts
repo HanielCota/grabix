@@ -51,8 +51,8 @@ export async function fetchPageHtml(rawUrl: string): Promise<{
     throw Errors.fetchFailed(reason);
   }
 
-  const contentType = response.headers.get("content-type");
-  if (!contentType?.includes("text/html")) {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("text/html") && !contentType.includes("application/xhtml+xml")) {
     throw Errors.notHtml();
   }
 

@@ -15,8 +15,10 @@ export async function downloadAsset(rawUrl: string): Promise<{
 
   const url = await validateUrlFormat(rawUrl);
 
+  // Extension check is optional — some assets have extensionless URLs
+  // (e.g. CDN streams, og:video). Content-Type is validated after fetch.
   const ext = getExtensionFromUrl(url.toString());
-  if (!ext || !isMediaExtension(ext)) {
+  if (ext && !isMediaExtension(ext)) {
     throw Errors.invalidMediaType();
   }
 

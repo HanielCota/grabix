@@ -89,11 +89,17 @@ export function MediaDownloader() {
 
       setState({ status: "success", result: data });
 
-      const newCount = analyzeCount + 1;
-      setAnalyzeCount(newCount);
+      setAnalyzeCount((prev) => {
+        const newCount = prev + 1;
+        try {
+          localStorage.setItem(STORAGE_COUNT_KEY, String(newCount));
+        } catch {
+          /* quota */
+        }
+        return newCount;
+      });
       setLastUrl(url);
       try {
-        localStorage.setItem(STORAGE_COUNT_KEY, String(newCount));
         localStorage.setItem(STORAGE_LAST_KEY, url);
       } catch {
         /* quota */

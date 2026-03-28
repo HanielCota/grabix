@@ -1,5 +1,5 @@
 export const IMAGE_EXTENSION_LIST = ["jpg", "jpeg", "png", "webp", "gif", "svg"] as const;
-export const VIDEO_EXTENSION_LIST = ["mp4", "webm", "mov", "m4v"] as const;
+export const VIDEO_EXTENSION_LIST = ["mp4", "webm", "mov", "m4v", "ogg", "avi"] as const;
 export const ALL_MEDIA_EXTENSION_LIST = [...IMAGE_EXTENSION_LIST, ...VIDEO_EXTENSION_LIST] as const;
 
 // ─── Lookup sets ───
@@ -7,6 +7,31 @@ export const ALL_MEDIA_EXTENSION_LIST = [...IMAGE_EXTENSION_LIST, ...VIDEO_EXTEN
 const IMAGE_EXTENSIONS = new Set<string>(IMAGE_EXTENSION_LIST);
 const VIDEO_EXTENSIONS = new Set<string>(VIDEO_EXTENSION_LIST);
 const ALL_MEDIA_EXTENSIONS = new Set<string>(ALL_MEDIA_EXTENSION_LIST);
+
+// ─── MIME → extension mapping ───
+
+const MIME_TO_EXTENSION: Record<string, string> = {
+  "video/mp4": "mp4",
+  "video/webm": "webm",
+  "video/ogg": "ogg",
+  "video/quicktime": "mov",
+  "video/x-m4v": "m4v",
+  "video/x-msvideo": "avi",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "image/svg+xml": "svg",
+};
+
+export function extensionFromMime(mime: string): string | null {
+  const clean = mime.split(";")[0].trim().toLowerCase();
+  return MIME_TO_EXTENSION[clean] ?? null;
+}
+
+export function isVideoMime(mime: string): boolean {
+  return mime.split(";")[0].trim().toLowerCase().startsWith("video/");
+}
 
 export function getExtensionFromUrl(url: string): string | null {
   if (!url) return null;

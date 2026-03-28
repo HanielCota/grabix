@@ -47,7 +47,7 @@ async function fetchAssetStream(asset: MediaAsset): Promise<{ stream: Readable; 
 
 export async function createZipStream(assets: MediaAsset[]): Promise<Readable> {
   if (!assets?.length) {
-    throw Errors.tooManyAssets();
+    throw Errors.downloadFailed("Nenhum arquivo selecionado.");
   }
 
   if (assets.length > appConfig.limits.maxAssets) {
