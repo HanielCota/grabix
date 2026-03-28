@@ -1,7 +1,7 @@
 "use client";
 
-import { Download, Image as ImageIcon, Package, Video, X } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { CheckSquare, Download, Image as ImageIcon, Package, Square, Video, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AnalyzePageResult } from "../domain/types";
 import { MediaCard } from "./media-card";
 import { type FilterType, MediaFilters } from "./media-filters";
@@ -14,6 +14,7 @@ interface MediaGalleryProps {
 
 export function MediaGallery({ result }: MediaGalleryProps) {
   const [filter, setFilter] = useState<FilterType>("all");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isZipping, setIsZipping] = useState(false);
   const [zipMsg, setZipMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -35,6 +36,49 @@ export function MediaGallery({ result }: MediaGalleryProps) {
   const visible = filtered.slice(0, visibleCount);
   const hasMore = visibleCount < filtered.length;
 
+  // ─── Selection ───
+
+  const toggleSelect = useCallback((url: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(url)) next.delete(url);
+      else next.add(url);
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelected((prev) => {
+      const filteredUrls = new Set(filtered.map((a) => a.url));
+      const allFilteredSelected = filtered.every((a) => prev.has(a.url));
+      if (allFilteredSelected) {
+        // Deselect only the currently filtered items
+        const next = new Set(prev);
+        for (const url of filteredUrls) next.delete(url);
+        return next;
+      }
+      // Select all filtered items (keep previous selections from other filters)
+      return new Set([...prev, ...filteredUrls]);
+    });
+  }, [filtered]);
+
+  // Ctrl+A to select all
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "a") {
+        e.preventDefault();
+        selectAll();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectAll]);
+
+  const assetsForZip = useMemo(() => {
+    if (selected.size === 0) return filtered;
+    return filtered.filter((a) => selected.has(a.url));
+  }, [filtered, selected]);
+
   // ─── Handlers ───
 
   function handleFilterChange(f: FilterType) {
@@ -48,16 +92,18 @@ export function MediaGallery({ result }: MediaGalleryProps) {
   }, []);
 
   async function handleDownloadZip() {
-    if (!filtered.length) return;
+    if (!assetsForZip.length) return;
+    const assetsToZip = assetsForZip.slice(0, 200);
 
-    // Capture count now so it doesn't go stale if the user changes filter during download
-    const assetsToZip = filtered;
     const zipCount = assetsToZip.length;
-
     const controller = new AbortController();
     zipAbortRef.current = controller;
     setIsZipping(true);
-    setZipMsg(null);
+    setZipMsg(
+      assetsForZip.length > 200
+        ? { type: "err", text: "Limite de 200 arquivos por ZIP. Os primeiros 200 serão incluídos." }
+        : null,
+    );
     try {
       const res = await fetch("/api/download-zip", {
         method: "POST",
@@ -75,14 +121,12 @@ export function MediaGallery({ result }: MediaGalleryProps) {
       }
 
       const blob = await res.blob();
-
-      // Check abort after the slow blob() await
       if (controller.signal.aborted) return;
 
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
-      a.download = "grabix-media.zip";
+      a.download = `grabix-${host}.zip`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -104,6 +148,13 @@ export function MediaGallery({ result }: MediaGalleryProps) {
     }
   }, [result.url]);
 
+  const allFilteredSelected = filtered.length > 0 && filtered.every((a) => selected.has(a.url));
+
+  const zipLabel =
+    selected.size > 0
+      ? `ZIP (${selected.size} selecionado${selected.size !== 1 ? "s" : ""})`
+      : `ZIP (${filtered.length})`;
+
   // ─── Render ───
 
   return (
@@ -124,14 +175,35 @@ export function MediaGallery({ result }: MediaGalleryProps) {
             </p>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex items-center gap-3">
+            {/* Select all */}
+            <button
+              type="button"
+              onClick={selectAll}
+              className={`inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-xs font-bold transition-all ${
+                allFilteredSelected
+                  ? "border-[var(--g-accent-border)] bg-[var(--g-accent-soft)] text-[var(--g-ink)]"
+                  : "border-[var(--g-line-hover)] bg-[var(--g-surface-3)] text-[var(--g-sub)] hover:text-[var(--g-ink)]"
+              }`}
+            >
+              {allFilteredSelected ? <CheckSquare size={14} /> : <Square size={14} />}
+              {allFilteredSelected ? "Desmarcar" : "Selecionar"} tudo
+            </button>
+
+            {selected.size > 0 && (
+              <span className="rounded-lg bg-[var(--g-accent-soft)] px-2.5 py-1 text-xs font-bold text-[var(--g-ink)]">
+                {selected.size}
+              </span>
+            )}
+
+            {/* ZIP */}
             {isZipping ? (
               <button
                 type="button"
                 onClick={cancelZip}
-                className="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--g-danger-border)] bg-[var(--g-danger-bg)] px-5 text-sm font-bold text-[var(--g-danger)] transition-all hover:bg-[rgba(248,113,113,0.12)]"
+                className="inline-flex h-9 items-center gap-2 rounded-xl border border-[var(--g-danger-border)] bg-[var(--g-danger-bg)] px-4 text-xs font-bold text-[var(--g-danger)] transition-all hover:bg-[rgba(248,113,113,0.12)]"
               >
-                <X className="h-4 w-4" />
+                <X className="h-3.5 w-3.5" />
                 Cancelar
               </button>
             ) : (
@@ -139,10 +211,10 @@ export function MediaGallery({ result }: MediaGalleryProps) {
                 type="button"
                 onClick={handleDownloadZip}
                 disabled={filtered.length === 0}
-                className="btn-primary inline-flex h-10 items-center gap-2 rounded-xl px-5 text-sm font-bold"
+                className="btn-primary inline-flex h-9 items-center gap-2 rounded-xl px-4 text-xs font-bold"
               >
-                <Package className="h-4 w-4" />
-                ZIP ({filtered.length})
+                <Package className="h-3.5 w-3.5" />
+                {zipLabel}
               </button>
             )}
           </div>
@@ -202,9 +274,15 @@ export function MediaGallery({ result }: MediaGalleryProps) {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
             {visible.map((asset, i) => (
-              <MediaCard key={asset.url} asset={asset} index={i} />
+              <MediaCard
+                key={asset.url}
+                asset={asset}
+                index={i}
+                selected={selected.has(asset.url)}
+                onToggle={() => toggleSelect(asset.url)}
+              />
             ))}
           </div>
 

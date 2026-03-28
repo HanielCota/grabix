@@ -1,14 +1,18 @@
 "use client";
 
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, Layers, X } from "lucide-react";
 import { motion } from "motion/react";
 
 interface ErrorMessageProps {
   message: string;
   onDismiss?: () => void;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
-export function ErrorMessage({ message, onDismiss }: ErrorMessageProps) {
+export function ErrorMessage({ message, onDismiss, action }: ErrorMessageProps) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.96 }}
@@ -30,6 +34,16 @@ export function ErrorMessage({ message, onDismiss }: ErrorMessageProps) {
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-[var(--g-danger)]">Erro na análise</p>
           <p className="mt-1 text-sm leading-relaxed text-[var(--g-sub)]">{message}</p>
+          {action && (
+            <button
+              type="button"
+              onClick={action.onClick}
+              className="mt-3 inline-flex items-center gap-2 rounded-xl border border-[var(--g-line-hover)] bg-[var(--g-surface-3)] px-4 py-2 text-sm font-semibold text-[var(--g-ink)] transition-all hover:bg-[var(--g-line)]"
+            >
+              <Layers size={15} />
+              {action.label}
+            </button>
+          )}
         </div>
         {onDismiss && (
           <button

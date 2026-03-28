@@ -14,9 +14,30 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+const siteUrl = "https://grabix.app";
+
 export const metadata: Metadata = {
-  title: "Grabix, Extraia mídias de qualquer página",
-  description: "Cole uma URL, analise o HTML e baixe imagens e vídeos públicos de forma organizada.",
+  title: "Grabix — Extraia mídias de qualquer página",
+  description:
+    "Cole uma URL e extraia todas as imagens e vídeos públicos. Baixe um por um ou tudo em ZIP. Sem cadastro, sem login.",
+  metadataBase: new URL(siteUrl),
+  openGraph: {
+    title: "Grabix — Extraia mídias de qualquer página",
+    description: "Cole uma URL e extraia todas as imagens e vídeos públicos. Baixe um por um ou tudo em ZIP.",
+    url: siteUrl,
+    siteName: "Grabix",
+    locale: "pt_BR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Grabix — Extraia mídias de qualquer página",
+    description: "Cole uma URL e extraia todas as imagens e vídeos públicos. Baixe um por um ou tudo em ZIP.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

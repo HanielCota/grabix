@@ -1,37 +1,28 @@
 "use client";
 
-import { ArrowLeft, BarChart3, CheckCircle2, History, Loader2, ScanSearch } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, ScanSearch } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CrawlProgress } from "@/components/crawl-progress";
+import { CrawlResults } from "@/components/crawl-results";
+import { useDeepCrawl } from "@/hooks/use-deep-crawl";
+import type { CrawlConfig } from "@/lib/crawl/types";
 import type { AnalyzePageResult } from "../domain/types";
+import { analyzePageResultSchema } from "../domain/types";
 import { ErrorMessage } from "./error-message";
 import { MediaGallery } from "./media-gallery";
 import { UrlInput } from "./url-input";
 
+type PartialCrawlConfig = Pick<CrawlConfig, "maxDepth" | "maxPages" | "followExternal">;
+
 type ViewState =
   | { status: "idle" }
   | { status: "loading"; url: string }
-  | { status: "error"; message: string; url?: string }
-  | { status: "success"; result: AnalyzePageResult };
-
-const STORAGE_COUNT_KEY = "grabix_count";
-const STORAGE_LAST_KEY = "grabix_last_url";
-
-function getStoredCount(): number {
-  try {
-    return parseInt(localStorage.getItem(STORAGE_COUNT_KEY) ?? "0", 10) || 0;
-  } catch {
-    return 0;
-  }
-}
-
-function getStoredLastUrl(): string | null {
-  try {
-    return localStorage.getItem(STORAGE_LAST_KEY);
-  } catch {
-    return null;
-  }
-}
+  | { status: "error"; message: string; url?: string; canRetryDeep?: boolean }
+  | { status: "success"; result: AnalyzePageResult }
+  | { status: "deep_crawling"; url: string }
+  | { status: "deep_complete"; url: string }
+  | { status: "deep_error"; url: string; message: string };
 
 const fadeSlide = {
   initial: { opacity: 0, y: 16 },
@@ -42,38 +33,63 @@ const fadeSlide = {
 
 export function MediaDownloader() {
   const [state, setState] = useState<ViewState>({ status: "idle" });
-  const [isDeepCrawl, setIsDeepCrawl] = useState(false);
   const [resetKey, setResetKey] = useState(0);
-  const [analyzeCount, setAnalyzeCount] = useState(0);
-  const [lastUrl, setLastUrl] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
 
+  const deepCrawl = useDeepCrawl();
+
   useEffect(() => {
-    setAnalyzeCount(getStoredCount());
-    setLastUrl(getStoredLastUrl());
     return () => {
       abortRef.current?.abort();
     };
   }, []);
 
+  // Sync deep crawl status to view state
+  useEffect(() => {
+    if (deepCrawl.status === "complete" && deepCrawl.results) {
+      setState((prev) => {
+        if (prev.status === "deep_crawling") {
+          return { status: "deep_complete", url: prev.url };
+        }
+        return prev;
+      });
+
+      requestAnimationFrame(() => {
+        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    } else if (deepCrawl.status === "error" && deepCrawl.error) {
+      setState((prev) => {
+        if (prev.status === "deep_crawling") {
+          return { status: "deep_error", url: prev.url, message: deepCrawl.error ?? "Erro desconhecido" };
+        }
+        return prev;
+      });
+    }
+  }, [deepCrawl.status, deepCrawl.results, deepCrawl.error]);
+
   // ─── Handlers ───
 
-  async function handleAnalyze(url: string, deepCrawl = false) {
+  async function handleAnalyze(url: string, useDeepCrawl = false, crawlConfig?: PartialCrawlConfig) {
     if (!url?.trim()) return;
 
     abortRef.current?.abort();
+
+    if (useDeepCrawl) {
+      setState({ status: "deep_crawling", url });
+      deepCrawl.startCrawl(url, crawlConfig ?? {});
+      return;
+    }
+
     const controller = new AbortController();
     abortRef.current = controller;
-
-    setIsDeepCrawl(deepCrawl);
     setState({ status: "loading", url });
 
     try {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, deepCrawl }),
+        body: JSON.stringify({ url, deepCrawl: false }),
         signal: controller.signal,
       });
 
@@ -81,31 +97,44 @@ export function MediaDownloader() {
       if (controller.signal.aborted) return;
 
       if (!response.ok) {
-        setState({ status: "error", message: data.error?.message ?? "Erro ao analisar a página.", url });
-        return;
-      }
-      if (data.totalFound === 0) {
-        setState({ status: "error", message: "Nenhuma mídia pública foi encontrada nesta página.", url });
-        return;
-      }
-
-      setState({ status: "success", result: data });
-
-      setAnalyzeCount((prev) => {
-        const newCount = prev + 1;
-        try {
-          localStorage.setItem(STORAGE_COUNT_KEY, String(newCount));
-        } catch {
-          /* quota */
+        if (response.status === 429) {
+          setState({
+            status: "error",
+            message: "Muitas requisições. Aguarde alguns segundos e tente novamente.",
+            url,
+          });
+          return;
         }
-        return newCount;
-      });
-      setLastUrl(url);
-      try {
-        localStorage.setItem(STORAGE_LAST_KEY, url);
-      } catch {
-        /* quota */
+        const code = data.error?.code ?? "";
+        const message = data.error?.message ?? "Erro ao analisar a página.";
+        const hint =
+          code === "SSRF_BLOCKED"
+            ? "Essa URL aponta para um endereço restrito."
+            : code === "NOT_HTML"
+              ? "A resposta não é uma página HTML. Verifique se a URL é de uma página web."
+              : code === "FETCH_FAILED" && message.includes("login")
+                ? "Essa página exige login. O Grabix só acessa páginas públicas."
+                : message;
+        setState({ status: "error", message: hint, url });
+        return;
       }
+      const parsed = analyzePageResultSchema.safeParse(data);
+      if (!parsed.success) {
+        setState({ status: "error", message: "Resposta inválida do servidor.", url });
+        return;
+      }
+
+      if (parsed.data.totalFound === 0) {
+        setState({
+          status: "error",
+          message: "Nenhuma mídia pública foi encontrada nesta página.",
+          url,
+          canRetryDeep: true,
+        });
+        return;
+      }
+
+      setState({ status: "success", result: parsed.data });
 
       requestAnimationFrame(() => {
         resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -118,9 +147,22 @@ export function MediaDownloader() {
 
   const handleBack = useCallback(() => {
     abortRef.current?.abort();
+    deepCrawl.reset();
     setState({ status: "idle" });
     setResetKey((k) => k + 1);
-  }, []);
+  }, [deepCrawl]);
+
+  // Keyboard shortcut: Esc to go back
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && state.status !== "idle") {
+        e.preventDefault();
+        handleBack();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [state.status, handleBack]);
 
   const currentUrl =
     state.status === "loading"
@@ -129,7 +171,15 @@ export function MediaDownloader() {
         ? state.url
         : state.status === "success"
           ? state.result.url
-          : null;
+          : state.status === "deep_crawling"
+            ? state.url
+            : state.status === "deep_complete"
+              ? state.url
+              : state.status === "deep_error"
+                ? state.url
+                : null;
+
+  const isLoading = state.status === "loading" || state.status === "deep_crawling";
 
   // ─── Render ───
 
@@ -139,33 +189,6 @@ export function MediaDownloader() {
         {state.status === "idle" ? (
           <motion.div key="input" {...fadeSlide}>
             <UrlInput onSubmit={handleAnalyze} isLoading={false} resetKey={resetKey} />
-
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-[var(--g-muted)]">
-              {analyzeCount > 0 && (
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="inline-flex items-center gap-1.5"
-                >
-                  <BarChart3 className="h-3.5 w-3.5" />
-                  {analyzeCount} página{analyzeCount !== 1 ? "s" : ""} analisada{analyzeCount !== 1 ? "s" : ""}
-                </motion.span>
-              )}
-              {lastUrl && (
-                <motion.button
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  type="button"
-                  onClick={() => handleAnalyze(lastUrl, isDeepCrawl)}
-                  className="inline-flex items-center gap-1.5 text-[var(--g-sub)] transition-colors hover:text-[var(--g-ink)]"
-                >
-                  <History className="h-3.5 w-3.5" />
-                  <span className="max-w-48 truncate font-mono underline decoration-[var(--g-line-hover)] underline-offset-2">
-                    {lastUrl.replace(/^https?:\/\//, "")}
-                  </span>
-                </motion.button>
-              )}
-            </div>
           </motion.div>
         ) : (
           <motion.div
@@ -187,7 +210,7 @@ export function MediaDownloader() {
             <p className="min-w-0 flex-1 truncate font-mono text-sm text-[var(--g-sub)]" title={currentUrl ?? ""}>
               {currentUrl}
             </p>
-            {state.status !== "loading" ? (
+            {!isLoading ? (
               <button
                 type="button"
                 onClick={handleBack}
@@ -210,6 +233,7 @@ export function MediaDownloader() {
 
       <div ref={resultsRef}>
         <AnimatePresence mode="wait">
+          {/* Standard loading */}
           {state.status === "loading" && (
             <motion.div
               key="loading"
@@ -220,18 +244,12 @@ export function MediaDownloader() {
               className="rounded-2xl border border-[var(--g-line-hover)] bg-[var(--g-surface-1)] p-6"
             >
               <div className="flex items-center gap-4">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--g-accent-glow)]">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--g-surface-3)]">
                   <Loader2 className="h-5 w-5 animate-spin text-[var(--g-ink)]" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-[var(--g-ink)]">
-                    {isDeepCrawl ? "Varrendo páginas..." : "Analisando página..."}
-                  </p>
-                  <p className="mt-1 text-xs text-[var(--g-muted)]">
-                    {isDeepCrawl
-                      ? "Seguindo links para encontrar vídeos em outras páginas"
-                      : "Buscando imagens e vídeos no HTML"}
-                  </p>
+                  <p className="text-sm font-semibold text-[var(--g-ink)]">Analisando página...</p>
+                  <p className="mt-1 text-xs text-[var(--g-muted)]">Buscando imagens e vídeos no HTML</p>
                 </div>
               </div>
               <div className="mt-5 flex gap-6 text-xs text-[var(--g-sub)]">
@@ -241,12 +259,77 @@ export function MediaDownloader() {
                   text="Extraindo mídias..."
                 />
               </div>
+
+              {/* Skeleton preview */}
+              <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
+                {["s1", "s2", "s3", "s4", "s5", "s6"].map((id) => (
+                  <div
+                    key={id}
+                    className="animate-pulse overflow-hidden rounded-xl border border-[var(--g-line)] bg-[var(--g-surface-2)]"
+                  >
+                    <div className="h-32 bg-[var(--g-surface-3)]" />
+                    <div className="space-y-2 p-3">
+                      <div className="h-3 w-3/4 rounded bg-[var(--g-surface-3)]" />
+                      <div className="h-2 w-1/2 rounded bg-[var(--g-surface-3)]" />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </motion.div>
           )}
 
+          {/* Deep crawl progress */}
+          {state.status === "deep_crawling" && (
+            <motion.div
+              key="deep-crawling"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <CrawlProgress
+                pagesDone={deepCrawl.progress.pagesDone}
+                pagesTotal={deepCrawl.progress.pagesTotal}
+                mediaFound={deepCrawl.progress.mediaFound}
+                activityLog={deepCrawl.activityLog}
+                onAbort={() => {
+                  deepCrawl.abort();
+                  handleBack();
+                }}
+              />
+            </motion.div>
+          )}
+
+          {/* Standard error */}
           {state.status === "error" && (
             <motion.div
               key="error"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <ErrorMessage
+                message={state.message}
+                onDismiss={handleBack}
+                action={
+                  state.canRetryDeep && state.url
+                    ? {
+                        label: "Tentar busca profunda",
+                        onClick: () => {
+                          if (state.url) handleAnalyze(state.url, true);
+                        },
+                      }
+                    : undefined
+                }
+              />
+            </motion.div>
+          )}
+
+          {/* Deep crawl error */}
+          {state.status === "deep_error" && (
+            <motion.div
+              key="deep-error"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
@@ -256,6 +339,7 @@ export function MediaDownloader() {
             </motion.div>
           )}
 
+          {/* Standard success */}
           {state.status === "success" && (
             <motion.div
               key="success"
@@ -265,6 +349,19 @@ export function MediaDownloader() {
               transition={{ duration: 0.4 }}
             >
               <MediaGallery result={state.result} />
+            </motion.div>
+          )}
+
+          {/* Deep crawl success */}
+          {state.status === "deep_complete" && deepCrawl.results && (
+            <motion.div
+              key="deep-success"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              <CrawlResults results={deepCrawl.results} />
             </motion.div>
           )}
         </AnimatePresence>

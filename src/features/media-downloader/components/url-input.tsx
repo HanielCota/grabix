@@ -1,42 +1,75 @@
 "use client";
 
-import { ArrowRight, Loader2, Search, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { AlertCircle, ArrowRight, Globe, Loader2, Search, Shield, X, Zap } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { DeepCrawlToggle } from "@/components/deep-crawl-toggle";
+import type { CrawlConfig } from "@/lib/crawl/types";
+
+type PartialCrawlConfig = Pick<CrawlConfig, "maxDepth" | "maxPages" | "followExternal">;
 
 interface UrlInputProps {
-  onSubmit: (url: string, deepCrawl: boolean) => void;
+  onSubmit: (url: string, deepCrawl: boolean, crawlConfig?: PartialCrawlConfig) => void;
   isLoading: boolean;
   resetKey?: number;
 }
 
+function validateUrl(raw: string): string | null {
+  if (!raw.trim()) return null;
+  const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const u = new URL(withProtocol);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return "Protocolo inválido";
+    if (!u.hostname.includes(".")) return "URL precisa ter um domínio válido";
+    return null;
+  } catch {
+    return "URL inválida";
+  }
+}
+
 export function UrlInput({ onSubmit, isLoading, resetKey }: UrlInputProps) {
   const [url, setUrl] = useState("");
+  const [touched, setTouched] = useState(false);
   const [deepCrawl, setDeepCrawl] = useState(false);
+  const [crawlConfig, setCrawlConfig] = useState<PartialCrawlConfig>({
+    maxDepth: 2,
+    maxPages: 20,
+    followExternal: false,
+  });
 
   useEffect(() => {
-    if (resetKey) setUrl("");
+    if (resetKey) {
+      setUrl("");
+      setTouched(false);
+    }
   }, [resetKey]);
 
-  // ─── Handlers ───
+  const validationError = useMemo(() => {
+    if (!touched || !url.trim()) return null;
+    return validateUrl(url);
+  }, [url, touched]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setTouched(true);
     const trimmed = url.trim();
     if (!trimmed) return;
+    const error = validateUrl(trimmed);
+    if (error) return;
     const normalized = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-    onSubmit(normalized, deepCrawl);
+    onSubmit(normalized, deepCrawl, deepCrawl ? crawlConfig : undefined);
   }
 
-  // ─── Render ───
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <label htmlFor="url-input" className="block text-sm font-semibold text-[var(--g-sub)]">
-        URL da página
-      </label>
-
-      <div className="input-glow rounded-2xl">
-        <div className="relative flex items-center gap-2 rounded-2xl border border-[var(--g-line-hover)] bg-[var(--g-surface-1)] p-1.5 transition-colors focus-within:border-[var(--g-accent-border)]">
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Input bar */}
+      <div className="rounded-2xl">
+        <div
+          className={`relative flex items-center gap-2 rounded-2xl border bg-[var(--g-surface-1)] p-1.5 transition-colors ${
+            validationError
+              ? "border-[var(--g-danger-border)]"
+              : "border-[var(--g-line-hover)] focus-within:border-[var(--g-accent-border)]"
+          }`}
+        >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--g-surface-3)] text-[var(--g-muted)]">
             <Search className="h-5 w-5" />
           </div>
@@ -46,8 +79,11 @@ export function UrlInput({ onSubmit, isLoading, resetKey }: UrlInputProps) {
             type="text"
             inputMode="url"
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="exemplo.com/galeria ou cole a URL completa"
+            onChange={(e) => {
+              setUrl(e.target.value);
+              if (!touched && e.target.value.trim()) setTouched(true);
+            }}
+            placeholder="Cole uma URL aqui..."
             disabled={isLoading}
             autoComplete="url"
             spellCheck={false}
@@ -57,7 +93,10 @@ export function UrlInput({ onSubmit, isLoading, resetKey }: UrlInputProps) {
           {url && !isLoading && (
             <button
               type="button"
-              onClick={() => setUrl("")}
+              onClick={() => {
+                setUrl("");
+                setTouched(false);
+              }}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--g-muted)] transition-all hover:bg-[var(--g-surface-3)] hover:text-[var(--g-ink)]"
               title="Limpar"
             >
@@ -77,71 +116,46 @@ export function UrlInput({ onSubmit, isLoading, resetKey }: UrlInputProps) {
               </>
             ) : (
               <>
-                Extrair mídias
+                Extrair
                 <ArrowRight className="h-4 w-4" />
               </>
             )}
           </button>
         </div>
+
+        {/* Validation error */}
+        {validationError && (
+          <p className="mt-2 flex items-center gap-1.5 px-2 text-xs font-medium text-[var(--g-danger)]">
+            <AlertCircle size={13} />
+            {validationError}
+          </p>
+        )}
       </div>
 
-      <button
-        type="button"
-        onClick={() => setDeepCrawl((v) => !v)}
-        className={`mx-auto flex items-center gap-2.5 rounded-xl border px-4 py-2.5 transition-all ${
-          deepCrawl
-            ? "border-[var(--g-accent-border)] bg-[var(--g-accent-soft)] shadow-[0_0_12px_rgba(255,255,255,0.06)]"
-            : "border-[var(--g-line)] bg-[var(--g-surface-2)] hover:border-[var(--g-line-hover)] hover:bg-[var(--g-surface-3)]"
-        }`}
-      >
-        <span
-          className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
-            deepCrawl ? "bg-[var(--g-accent)]" : "bg-[var(--g-line-hover)]"
-          }`}
-        >
-          <span
-            className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
-              deepCrawl ? "translate-x-4.5" : "translate-x-0.5"
-            }`}
-          />
-        </span>
-        <span className={`text-sm font-medium ${deepCrawl ? "text-[var(--g-ink)]" : "text-[var(--g-sub)]"}`}>
-          Busca profunda
-        </span>
-        <span className={`text-xs ${deepCrawl ? "text-[var(--g-sub)]" : "text-[var(--g-muted)]"}`}>
-          Segue links para encontrar mais vídeos
-        </span>
-      </button>
+      {/* Feature pills + deep crawl toggle */}
+      <div className="flex flex-col items-center gap-3">
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <Pill icon={<Globe size={16} />} text="Qualquer site" />
+          <Pill icon={<Zap size={16} />} text="Em segundos" />
+          <Pill icon={<Shield size={16} />} text="Sem cadastro" />
+        </div>
 
-      <QuickExamples onSelect={setUrl} />
+        <DeepCrawlToggle
+          enabled={deepCrawl}
+          onEnabledChange={setDeepCrawl}
+          config={crawlConfig}
+          onConfigChange={setCrawlConfig}
+        />
+      </div>
     </form>
   );
 }
 
-// ─── Quick examples ───
-
-const EXAMPLES = [
-  { label: "Wikipedia", url: "https://pt.wikipedia.org/wiki/Brasil" },
-  { label: "Pexels", url: "https://www.pexels.com/search/nature/" },
-  { label: "Unsplash", url: "https://unsplash.com/s/photos/city" },
-];
-
-function QuickExamples({ onSelect }: { onSelect: (url: string) => void }) {
+function Pill({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
-    <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-xs text-[var(--g-muted)]">
-      <span>Testa com:</span>
-      {EXAMPLES.map((ex, i) => (
-        <span key={ex.label}>
-          <button
-            type="button"
-            onClick={() => onSelect(ex.url)}
-            className="font-medium text-[var(--g-sub)] underline decoration-[var(--g-line-hover)] underline-offset-2 transition-colors hover:text-[var(--g-ink)]"
-          >
-            {ex.label}
-          </button>
-          {i < EXAMPLES.length - 1 && <span className="ml-1.5">·</span>}
-        </span>
-      ))}
-    </div>
+    <span className="inline-flex items-center gap-2 rounded-full border border-[var(--g-line)] bg-[var(--g-surface-2)] px-4 py-2 text-sm font-medium text-[var(--g-muted)]">
+      <span className="text-[var(--g-sub)]">{icon}</span>
+      {text}
+    </span>
   );
 }

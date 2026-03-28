@@ -19,7 +19,7 @@
   --g-accent-hover: #ffffff;
   --g-accent-text: #09090b;
   --g-accent-soft: rgba(255, 255, 255, 0.04);
-  --g-accent-glow: rgba(255, 255, 255, 0.12);
+
   --g-accent-border: rgba(255, 255, 255, 0.12);
   --g-danger: #f87171;
   --g-danger-bg: rgba(248, 113, 113, 0.06);
@@ -76,26 +76,6 @@ html {
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
-}
-
-/* ─── Glow ring for input ─── */
-
-.input-glow {
-  position: relative;
-}
-.input-glow::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: 1rem;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent, rgba(255, 255, 255, 0.08));
-  opacity: 0;
-  transition: opacity 250ms ease;
-  pointer-events: none;
-  z-index: 0;
-}
-.input-glow:focus-within::before {
-  opacity: 1;
 }
 
 /* ─── Focus ─── */
