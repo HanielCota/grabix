@@ -35,9 +35,9 @@ export const appConfig: AppConfig = appConfigSchema.parse({
     maxConcurrentDownloads: 5,
   },
   crawl: {
-    maxPages: 15,
-    maxDepth: 1,
-    concurrency: 3,
+    maxPages: 30,
+    maxDepth: 2,
+    concurrency: 5,
     sameDomainOnly: true,
   },
 });

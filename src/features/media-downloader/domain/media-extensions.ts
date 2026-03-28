@@ -1,5 +1,24 @@
 export const IMAGE_EXTENSION_LIST = ["jpg", "jpeg", "png", "webp", "gif", "svg"] as const;
-export const VIDEO_EXTENSION_LIST = ["mp4", "webm", "mov", "m4v", "ogg", "avi"] as const;
+export const VIDEO_EXTENSION_LIST = [
+  "mp4",
+  "webm",
+  "mov",
+  "m4v",
+  "ogg",
+  "avi",
+  "mkv",
+  "flv",
+  "wmv",
+  "3gp",
+  "3g2",
+  "ts",
+  "f4v",
+  "mpg",
+  "mpeg",
+  "asf",
+  "m3u8",
+  "mpd",
+] as const;
 export const ALL_MEDIA_EXTENSION_LIST = [...IMAGE_EXTENSION_LIST, ...VIDEO_EXTENSION_LIST] as const;
 
 export type MediaExtension = (typeof ALL_MEDIA_EXTENSION_LIST)[number];
@@ -19,6 +38,18 @@ const MIME_TO_EXTENSION: Record<string, string> = {
   "video/quicktime": "mov",
   "video/x-m4v": "m4v",
   "video/x-msvideo": "avi",
+  "video/x-matroska": "mkv",
+  "video/x-flv": "flv",
+  "video/x-ms-wmv": "wmv",
+  "video/3gpp": "3gp",
+  "video/3gpp2": "3g2",
+  "video/mp2t": "ts",
+  "video/x-f4v": "f4v",
+  "video/mpeg": "mpg",
+  "video/x-ms-asf": "asf",
+  "application/x-mpegurl": "m3u8",
+  "application/vnd.apple.mpegurl": "m3u8",
+  "application/dash+xml": "mpd",
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/webp": "webp",

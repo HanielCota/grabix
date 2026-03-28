@@ -227,7 +227,7 @@ export async function extractMediaAndLinks(html: string, baseUrl: string): Promi
 
   // ─── Meta tags (og:video, twitter:player) ───
 
-  const metaVideoAttrs = ["og:video", "og:video:url", "og:video:secure_url", "twitter:player:stream"];
+  const metaVideoAttrs = ["og:video", "og:video:url", "og:video:secure_url", "twitter:player:stream", "twitter:player"];
 
   for (const prop of metaVideoAttrs) {
     const content = $(`meta[property="${prop}"]`).attr("content") ?? $(`meta[name="${prop}"]`).attr("content");
@@ -244,6 +244,53 @@ export async function extractMediaAndLinks(html: string, baseUrl: string): Promi
   if (ogImage) {
     rawRefs.push({ url: ogImage, sourceTag: "meta[og:image]" });
   }
+
+  // ─── JSON-LD structured data (schema.org VideoObject) ───
+
+  $('script[type="application/ld+json"]').each((_, el) => {
+    const text = $(el).html();
+    if (!text) return;
+    try {
+      const data = JSON.parse(text);
+      extractVideoFromJsonLd(data, rawRefs);
+    } catch {
+      // Malformed JSON-LD — skip
+    }
+  });
+
+  // ─── Inline scripts: extract video URLs from JS/JSON configs ───
+
+  $("script:not([src])").each((_, el) => {
+    const text = $(el).html();
+    if (!text || text.length > 500_000) return; // Skip huge scripts
+    extractVideoUrlsFromScript(text, rawRefs);
+  });
+
+  // ─── data-* attributes on any element that contain video URLs ───
+
+  $(
+    "[data-video-src], [data-video-url], [data-video], [data-file-url], [data-mp4], [data-src-mp4], [data-webm], [data-src-webm], [data-hls], [data-stream-url]",
+  ).each((_, el) => {
+    const $el = $(el);
+    const videoDataAttrs = [
+      "data-video-src",
+      "data-video-url",
+      "data-video",
+      "data-file-url",
+      "data-mp4",
+      "data-src-mp4",
+      "data-webm",
+      "data-src-webm",
+      "data-hls",
+      "data-stream-url",
+    ];
+    for (const attr of videoDataAttrs) {
+      const val = $el.attr(attr);
+      if (val && (looksLikeVideoUrl(val) || val.startsWith("http"))) {
+        rawRefs.push({ url: val, sourceTag: `[${attr}]`, inferredExt: inferVideoExtFromUrl(val) });
+      }
+    }
+  });
 
   const assets = await normalizeAndDeduplicate(rawRefs, baseUrl);
 
@@ -265,6 +312,88 @@ export async function extractMediaAndLinks(html: string, baseUrl: string): Promi
   });
 
   return { assets, links: Array.from(links) };
+}
+
+// ─── Video URL detection helpers ───
+
+const VIDEO_URL_PATTERN =
+  /https?:\/\/[^\s"'<>\])]+?\.(mp4|webm|mov|m4v|ogg|avi|mkv|flv|wmv|3gp|ts|f4v|mpg|mpeg|m3u8|mpd)(?:[?#][^\s"'<>\])]*)?/gi;
+
+function looksLikeVideoUrl(url: string): boolean {
+  return /\.(mp4|webm|mov|m4v|ogg|avi|mkv|flv|wmv|3gp|ts|f4v|mpg|mpeg|m3u8|mpd)(\?|#|$)/i.test(url);
+}
+
+function inferVideoExtFromUrl(url: string): string | undefined {
+  const match = url.match(/\.(mp4|webm|mov|m4v|ogg|avi|mkv|flv|wmv|3gp|ts|f4v|mpg|mpeg|m3u8|mpd)(\?|#|$)/i);
+  return match ? match[1].toLowerCase() : undefined;
+}
+
+function extractVideoFromJsonLd(data: unknown, refs: RawMediaRef[]): void {
+  if (!data || typeof data !== "object") return;
+
+  if (Array.isArray(data)) {
+    for (const item of data) extractVideoFromJsonLd(item, refs);
+    return;
+  }
+
+  const obj = data as Record<string, unknown>;
+
+  // Handle @graph arrays
+  if (Array.isArray(obj["@graph"])) {
+    for (const item of obj["@graph"]) extractVideoFromJsonLd(item, refs);
+  }
+
+  const type = String(obj["@type"] ?? "").toLowerCase();
+  if (type === "videoobject" || type === "video") {
+    for (const prop of ["contentUrl", "embedUrl", "url"]) {
+      const val = obj[prop];
+      if (typeof val === "string" && val.startsWith("http")) {
+        // Skip YouTube/Vimeo embed URLs
+        if (extractYouTubeId(val) || extractVimeoId(val)) continue;
+        refs.push({ url: val, sourceTag: `json-ld[${prop}]`, inferredExt: inferVideoExtFromUrl(val) ?? "mp4" });
+      }
+    }
+    // Also grab thumbnail
+    const thumb = obj.thumbnailUrl;
+    if (typeof thumb === "string" && thumb.startsWith("http")) {
+      refs.push({ url: thumb, sourceTag: "json-ld[thumbnailUrl]" });
+    }
+  }
+}
+
+function extractVideoUrlsFromScript(script: string, refs: RawMediaRef[]): void {
+  // 1. Find direct video URLs in any script content
+  const urlMatches = script.matchAll(VIDEO_URL_PATTERN);
+  for (const match of urlMatches) {
+    const url = match[0];
+    // Skip common false positives (source maps, imports, etc.)
+    if (url.includes(".js.map") || url.includes("node_modules")) continue;
+    refs.push({ url, sourceTag: "script", inferredExt: inferVideoExtFromUrl(url) });
+  }
+
+  // 2. JW Player config patterns: file:"url" or sources:[{file:"url"}]
+  const jwPatterns = [
+    /file\s*:\s*["']([^"']+?\.(mp4|webm|m3u8)[^"']*?)["']/gi,
+    /source\s*:\s*["']([^"']+?\.(mp4|webm|m3u8)[^"']*?)["']/gi,
+  ];
+  for (const pattern of jwPatterns) {
+    for (const m of script.matchAll(pattern)) {
+      refs.push({ url: m[1], sourceTag: "script[jwplayer]", inferredExt: m[2].toLowerCase() });
+    }
+  }
+
+  // 3. Video.js / HTML5 player patterns: src:"url" with video MIME
+  const srcPatterns = /src\s*:\s*["']([^"']+?\.(mp4|webm|mov|ogg|m3u8)[^"']*?)["']/gi;
+  for (const m of script.matchAll(srcPatterns)) {
+    refs.push({ url: m[1], sourceTag: "script[player]", inferredExt: m[2].toLowerCase() });
+  }
+
+  // 4. JSON-like objects with video URLs: "url":"...mp4", "video_url":"...mp4"
+  const jsonUrlPatterns =
+    /["']((?:video_?)?(?:url|src|file|stream|source|hls|dash))["']\s*:\s*["'](https?:\/\/[^"']+?\.(mp4|webm|m3u8|mpd|mov|flv)[^"']*?)["']/gi;
+  for (const m of script.matchAll(jsonUrlPatterns)) {
+    refs.push({ url: m[2], sourceTag: `script[${m[1]}]`, inferredExt: m[3].toLowerCase() });
+  }
 }
 
 // ─── Helpers ───

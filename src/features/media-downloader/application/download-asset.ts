@@ -47,7 +47,14 @@ export async function downloadAsset(rawUrl: string): Promise<{
   }
 
   const contentType = response.headers.get("content-type") ?? "";
-  const isValidType = ["image/", "video/", "application/octet-stream"].some((t) => contentType.includes(t));
+  const isValidType = [
+    "image/",
+    "video/",
+    "application/octet-stream",
+    "application/x-mpegurl",
+    "application/vnd.apple.mpegurl",
+    "application/dash+xml",
+  ].some((t) => contentType.includes(t));
 
   if (!isValidType) {
     throw Errors.invalidMediaType();

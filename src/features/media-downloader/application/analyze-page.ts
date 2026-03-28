@@ -71,10 +71,7 @@ export async function analyzePage(rawUrl: string, deepCrawl = false): Promise<An
             const { html: pageHtml, resolvedUrl: pageUrl } = await fetchPageHtml(link);
             const pageResult = await extractMediaAndLinks(pageHtml, pageUrl);
 
-            // Only keep video assets from crawled pages
-            const videos = pageResult.assets.filter((a) => a.type === "VIDEO");
-
-            return { videos, links: pageResult.links };
+            return { media: pageResult.assets, links: pageResult.links };
           } catch {
             // Silently skip pages that fail (404, timeout, etc.)
             return null;
@@ -88,10 +85,10 @@ export async function analyzePage(rawUrl: string, deepCrawl = false): Promise<An
       for (const result of results) {
         if (result.status !== "fulfilled" || !result.value) continue;
 
-        for (const video of result.value.videos) {
+        for (const asset of result.value.media) {
           if (allAssets.size >= maxAssets) break;
-          if (!allAssets.has(video.url)) {
-            allAssets.set(video.url, video);
+          if (!allAssets.has(asset.url)) {
+            allAssets.set(asset.url, asset);
           }
         }
 
