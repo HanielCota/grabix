@@ -1,9 +1,17 @@
 import { appConfig } from "@/server/config";
-import { validateDnsResolution, validateUrlFormat } from "@/server/security";
-import { Errors } from "../domain/errors";
-import { getExtensionFromUrl, isMediaExtension } from "../domain/media-extensions";
+import { safeFetch } from "@/server/safe-fetch";
+import { AppError, Errors } from "../domain/errors";
+import {
+  getExtensionFromUrl,
+  getFileNameFromUrl,
+  isAllowedMediaContentType,
+  isMediaExtension,
+} from "../domain/media-extensions";
 
-export async function downloadAsset(rawUrl: string): Promise<{
+export async function downloadAsset(
+  rawUrl: string,
+  signal?: AbortSignal,
+): Promise<{
   stream: ReadableStream<Uint8Array>;
   contentType: string;
   contentLength: number | null;
@@ -13,33 +21,31 @@ export async function downloadAsset(rawUrl: string): Promise<{
     throw Errors.invalidUrl("URL não pode ser vazia.");
   }
 
-  const url = await validateUrlFormat(rawUrl);
-
   // Extension check is optional — some assets have extensionless URLs
   // (e.g. CDN streams, og:video). Content-Type is validated after fetch.
-  const ext = getExtensionFromUrl(url.toString());
+  const ext = getExtensionFromUrl(rawUrl);
   if (ext && !isMediaExtension(ext)) {
     throw Errors.invalidMediaType();
   }
 
-  await validateDnsResolution(url.hostname);
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), appConfig.limits.fetchTimeoutMs);
-
   let response: Response;
+  let resolvedUrl = rawUrl;
   try {
-    response = await fetch(url.toString(), {
-      signal: controller.signal,
+    const result = await safeFetch(rawUrl, {
+      signal,
+      timeoutMs: appConfig.limits.fetchTimeoutMs,
       headers: { "User-Agent": appConfig.userAgent },
     });
+    response = result.response;
+    resolvedUrl = result.resolvedUrl;
   } catch (err) {
-    if (err instanceof Error && err.name === "AbortError") {
+    if (err instanceof AppError) {
+      throw err;
+    }
+    if (err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError")) {
       throw Errors.downloadFailed("Timeout.");
     }
     throw Errors.downloadFailed("Erro de rede.");
-  } finally {
-    clearTimeout(timeout);
   }
 
   if (!response.ok) {
@@ -47,16 +53,7 @@ export async function downloadAsset(rawUrl: string): Promise<{
   }
 
   const contentType = response.headers.get("content-type") ?? "";
-  const isValidType = [
-    "image/",
-    "video/",
-    "application/octet-stream",
-    "application/x-mpegurl",
-    "application/vnd.apple.mpegurl",
-    "application/dash+xml",
-  ].some((t) => contentType.includes(t));
-
-  if (!isValidType) {
+  if (!isAllowedMediaContentType(contentType)) {
     throw Errors.invalidMediaType();
   }
 
@@ -102,6 +99,6 @@ export async function downloadAsset(rawUrl: string): Promise<{
     stream: limitedStream,
     contentType: contentType || "application/octet-stream",
     contentLength,
-    fileName,
+    fileName: fileName ?? getFileNameFromUrl(resolvedUrl, 0),
   };
 }

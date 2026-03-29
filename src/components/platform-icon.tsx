@@ -1,5 +1,3 @@
-"use client";
-
 import { Globe, Play, Tv, Video } from "lucide-react";
 
 const PLATFORM_CONFIG: Record<string, { icon: typeof Video; label: string; bg: string; text: string }> = {

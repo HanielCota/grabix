@@ -1,6 +1,7 @@
 "use client";
 
 import { Image as ImageIcon, LayoutGrid, Video } from "lucide-react";
+import { memo } from "react";
 
 export type FilterType = "all" | "IMAGE" | "VIDEO";
 
@@ -16,20 +17,16 @@ const FILTERS: { value: FilterType; label: string; icon: React.ReactNode }[] = [
   { value: "VIDEO", label: "Vídeos", icon: <Video className="h-3.5 w-3.5" /> },
 ];
 
-export function MediaFilters({ active, onChange, counts }: MediaFiltersProps) {
+export const MediaFilters = memo(function MediaFilters({ active, onChange, counts }: MediaFiltersProps) {
   return (
-    <div
-      className="inline-flex gap-1 rounded-xl border border-[var(--g-line)] bg-[var(--g-surface-1)] p-1"
-      role="tablist"
-    >
+    <div className="inline-flex gap-1 rounded-xl border border-[var(--g-line)] bg-[var(--g-surface-1)] p-1">
       {FILTERS.map(({ value, label, icon }) => {
         const isActive = active === value;
         return (
           <button
             key={value}
             type="button"
-            role="tab"
-            aria-selected={isActive}
+            aria-pressed={isActive}
             onClick={() => onChange(value)}
             className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition-all ${
               isActive
@@ -51,4 +48,4 @@ export function MediaFilters({ active, onChange, counts }: MediaFiltersProps) {
       })}
     </div>
   );
-}
+});

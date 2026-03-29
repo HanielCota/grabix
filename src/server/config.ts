@@ -7,6 +7,7 @@ const limitsSchema = z.object({
   maxHtmlSizeBytes: z.number().int().positive(),
   maxAssets: z.number().int().positive().max(500),
   maxFileSizeBytes: z.number().int().positive(),
+  maxZipSizeBytes: z.number().int().positive(),
   maxConcurrentDownloads: z.number().int().positive().max(10),
 });
 
@@ -32,6 +33,7 @@ export const appConfig: AppConfig = appConfigSchema.parse({
     maxHtmlSizeBytes: 10 * 1024 * 1024, // 10 MB
     maxAssets: 200,
     maxFileSizeBytes: 100 * 1024 * 1024, // 100 MB
+    maxZipSizeBytes: 500 * 1024 * 1024, // 500 MB
     maxConcurrentDownloads: 5,
   },
   crawl: {

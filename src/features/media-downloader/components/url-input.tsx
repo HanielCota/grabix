@@ -4,6 +4,7 @@ import { AlertCircle, ArrowRight, Globe, Loader2, Search, Shield, X, Zap } from 
 import { useEffect, useMemo, useState } from "react";
 import { DeepCrawlToggle } from "@/components/deep-crawl-toggle";
 import type { CrawlConfig } from "@/lib/crawl/types";
+import { getPublicUrlError, normalizeHttpUrlInput } from "@/lib/url/public-url";
 
 type PartialCrawlConfig = Pick<CrawlConfig, "maxDepth" | "maxPages" | "followExternal">;
 
@@ -11,19 +12,6 @@ interface UrlInputProps {
   onSubmit: (url: string, deepCrawl: boolean, crawlConfig?: PartialCrawlConfig) => void;
   isLoading: boolean;
   resetKey?: number;
-}
-
-function validateUrl(raw: string): string | null {
-  if (!raw.trim()) return null;
-  const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-  try {
-    const u = new URL(withProtocol);
-    if (u.protocol !== "http:" && u.protocol !== "https:") return "Protocolo inválido";
-    if (!u.hostname.includes(".")) return "URL precisa ter um domínio válido";
-    return null;
-  } catch {
-    return "URL inválida";
-  }
 }
 
 export function UrlInput({ onSubmit, isLoading, resetKey }: UrlInputProps) {
@@ -37,7 +25,7 @@ export function UrlInput({ onSubmit, isLoading, resetKey }: UrlInputProps) {
   });
 
   useEffect(() => {
-    if (resetKey) {
+    if (resetKey !== undefined) {
       setUrl("");
       setTouched(false);
     }
@@ -45,17 +33,19 @@ export function UrlInput({ onSubmit, isLoading, resetKey }: UrlInputProps) {
 
   const validationError = useMemo(() => {
     if (!touched || !url.trim()) return null;
-    return validateUrl(url);
+    return getPublicUrlError(url);
   }, [url, touched]);
+
+  const errorId = validationError ? "url-input-error" : undefined;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setTouched(true);
     const trimmed = url.trim();
     if (!trimmed) return;
-    const error = validateUrl(trimmed);
+    const error = getPublicUrlError(trimmed);
     if (error) return;
-    const normalized = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    const normalized = normalizeHttpUrlInput(trimmed);
     onSubmit(normalized, deepCrawl, deepCrawl ? crawlConfig : undefined);
   }
 
@@ -74,6 +64,9 @@ export function UrlInput({ onSubmit, isLoading, resetKey }: UrlInputProps) {
             <Search className="h-5 w-5" />
           </div>
 
+          <label htmlFor="url-input" className="sr-only">
+            URL pública para extrair mídia
+          </label>
           <input
             id="url-input"
             type="text"
@@ -87,6 +80,8 @@ export function UrlInput({ onSubmit, isLoading, resetKey }: UrlInputProps) {
             disabled={isLoading}
             autoComplete="url"
             spellCheck={false}
+            aria-invalid={validationError ? "true" : "false"}
+            aria-describedby={errorId}
             className="min-h-12 min-w-0 flex-1 bg-transparent px-2 text-[15px] text-[var(--g-ink)] placeholder:text-[var(--g-muted)] focus:outline-none disabled:opacity-50"
           />
 
@@ -98,7 +93,7 @@ export function UrlInput({ onSubmit, isLoading, resetKey }: UrlInputProps) {
                 setTouched(false);
               }}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--g-muted)] transition-all hover:bg-[var(--g-surface-3)] hover:text-[var(--g-ink)]"
-              title="Limpar"
+              aria-label="Limpar URL"
             >
               <X className="h-4 w-4" />
             </button>
@@ -125,7 +120,7 @@ export function UrlInput({ onSubmit, isLoading, resetKey }: UrlInputProps) {
 
         {/* Validation error */}
         {validationError && (
-          <p className="mt-2 flex items-center gap-1.5 px-2 text-xs font-medium text-[var(--g-danger)]">
+          <p id={errorId} className="mt-2 flex items-center gap-1.5 px-2 text-xs font-medium text-[var(--g-danger)]">
             <AlertCircle size={13} />
             {validationError}
           </p>

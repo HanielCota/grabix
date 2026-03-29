@@ -44,6 +44,7 @@ const API_METHODS: Record<string, string> = {
   "/api/analyze": "POST",
   "/api/download": "GET",
   "/api/download-zip": "POST",
+  "/api/extract/deep": "POST",
 };
 
 // ─── Proxy ───

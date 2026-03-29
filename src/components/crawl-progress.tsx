@@ -2,7 +2,12 @@
 
 import { AlertCircle, CheckCircle2, Globe, Link, Loader2, Video, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { memo } from "react";
 import type { ActivityLogEntry } from "@/lib/crawl/types";
+
+const logEntryInitial = { opacity: 0, x: -8 };
+const logEntryAnimate = { opacity: 1, x: 0 };
+const logEntryTransition = { duration: 0.15 };
 
 interface CrawlProgressProps {
   pagesDone: number;
@@ -12,7 +17,7 @@ interface CrawlProgressProps {
   onAbort: () => void;
 }
 
-export function CrawlProgress({ pagesDone, pagesTotal, mediaFound, activityLog, onAbort }: CrawlProgressProps) {
+export const CrawlProgress = memo(function CrawlProgress({ pagesDone, pagesTotal, mediaFound, activityLog, onAbort }: CrawlProgressProps) {
   const percentage = pagesTotal > 0 ? Math.round((pagesDone / pagesTotal) * 100) : 0;
 
   return (
@@ -70,19 +75,7 @@ export function CrawlProgress({ pagesDone, pagesTotal, mediaFound, activityLog, 
           <div className="max-h-44 overflow-y-auto p-3">
             <AnimatePresence initial={false}>
               {activityLog.map((entry) => (
-                <motion.div
-                  key={entry.id}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--g-surface-3)]/50"
-                >
-                  <ActivityIcon type={entry.type} />
-                  <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--g-sub)]">{entry.message}</span>
-                  <span className="shrink-0 max-w-32 truncate font-mono text-[10px] text-[var(--g-muted)]">
-                    {truncateUrl(entry.url)}
-                  </span>
-                </motion.div>
+                <LogEntry key={entry.id} entry={entry} />
               ))}
             </AnimatePresence>
           </div>
@@ -90,7 +83,24 @@ export function CrawlProgress({ pagesDone, pagesTotal, mediaFound, activityLog, 
       )}
     </div>
   );
-}
+});
+
+const LogEntry = memo(function LogEntry({ entry }: { entry: ActivityLogEntry }) {
+  return (
+    <motion.div
+      initial={logEntryInitial}
+      animate={logEntryAnimate}
+      transition={logEntryTransition}
+      className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--g-surface-3)]/50"
+    >
+      <ActivityIcon type={entry.type} />
+      <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--g-sub)]">{entry.message}</span>
+      <span className="shrink-0 max-w-32 truncate font-mono text-[10px] text-[var(--g-muted)]">
+        {truncateUrl(entry.url)}
+      </span>
+    </motion.div>
+  );
+});
 
 function MiniStat({ label, value, color, bg }: { label: string; value: number | string; color: string; bg: string }) {
   return (

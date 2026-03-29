@@ -1,43 +1,29 @@
 import { lookup } from "node:dns/promises";
 import { AppError, Errors } from "@/features/media-downloader/domain/errors";
-
-const PRIVATE_IP_RANGES = [
-  /^127\./,
-  /^10\./,
-  /^172\.(1[6-9]|2\d|3[01])\./,
-  /^192\.168\./,
-  /^169\.254\./,
-  /^0\./,
-  /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./,
-  /^::1$/,
-  /^fc00:/i,
-  /^fd/i,
-  /^fe80:/i,
-  /^::ffff:(127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|0\.)/i,
-];
+import { isPrivateHostname, normalizeHttpUrlInput } from "@/lib/url/public-url";
 
 // ─── DNS cache ───
 
-const dnsCache = new Map<string, { address: string; timestamp: number }>();
+const dnsCache = new Map<string, { addresses: string[]; timestamp: number }>();
 const DNS_CACHE_TTL = 5 * 60 * 1000;
 const DNS_CACHE_MAX = 500;
 const DNS_TIMEOUT = 5000;
 
 function isPrivateIp(ip: string): boolean {
-  if (!ip) return true; // treat empty as private (block)
-  return PRIVATE_IP_RANGES.some((range) => range.test(ip));
+  return isPrivateHostname(ip);
 }
 
 // ─── URL validation ───
 
 export async function validateUrlFormat(raw: string): Promise<URL> {
-  if (!raw?.trim()) {
+  const normalized = normalizeHttpUrlInput(raw);
+  if (!normalized) {
     throw Errors.invalidUrl("URL não pode ser vazia.");
   }
 
   let url: URL;
   try {
-    url = new URL(raw);
+    url = new URL(normalized);
   } catch {
     throw Errors.invalidUrl("URL malformada.");
   }
@@ -51,7 +37,7 @@ export async function validateUrlFormat(raw: string): Promise<URL> {
     throw Errors.invalidUrl("URL sem hostname.");
   }
 
-  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0" || hostname === "::1") {
+  if (isPrivateHostname(hostname)) {
     throw Errors.ssrfBlocked();
   }
 
@@ -69,20 +55,26 @@ export async function validateDnsResolution(hostname: string): Promise<void> {
   const now = Date.now();
 
   if (cached && now - cached.timestamp < DNS_CACHE_TTL) {
-    if (isPrivateIp(cached.address)) {
+    if (cached.addresses.some((address) => isPrivateIp(address))) {
       throw Errors.ssrfBlocked();
     }
     return;
   }
 
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
   try {
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("DNS timeout")), DNS_TIMEOUT);
+      timeoutId = setTimeout(() => reject(new Error("DNS timeout")), DNS_TIMEOUT);
     });
 
-    const result = (await Promise.race([lookup(hostname), timeoutPromise])) as { address: string };
+    const results = (await Promise.race([lookup(hostname, { all: true, verbatim: true }), timeoutPromise])) as Array<{
+      address: string;
+    }>;
 
-    if (!result?.address) {
+    const addresses = Array.from(new Set(results.map((result) => result.address).filter(Boolean)));
+
+    if (addresses.length === 0) {
       throw Errors.fetchFailed(`DNS não retornou endereço para ${hostname}`);
     }
 
@@ -91,9 +83,9 @@ export async function validateDnsResolution(hostname: string): Promise<void> {
       const oldest = dnsCache.keys().next().value;
       if (oldest !== undefined) dnsCache.delete(oldest);
     }
-    dnsCache.set(hostname, { address: result.address, timestamp: now });
+    dnsCache.set(hostname, { addresses, timestamp: now });
 
-    if (isPrivateIp(result.address)) {
+    if (addresses.some((address) => isPrivateIp(address))) {
       throw Errors.ssrfBlocked();
     }
   } catch (err) {
@@ -105,5 +97,7 @@ export async function validateDnsResolution(hostname: string): Promise<void> {
     }
 
     throw Errors.fetchFailed(`Falha na resolução DNS de ${hostname}`);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
 }

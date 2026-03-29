@@ -2,8 +2,12 @@
 
 import { Check, Copy, Download, ExternalLink, Image as ImageIcon, Loader2, Video } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { memo, useState } from "react";
 import type { MediaAsset } from "../domain/types";
+
+const cardInitial = { opacity: 0, y: 20 };
+const cardAnimate = { opacity: 1, y: 0 };
+const cardWhileHover = { y: -4 };
 
 interface MediaCardProps {
   asset: MediaAsset;
@@ -12,9 +16,10 @@ interface MediaCardProps {
   onToggle: () => void;
 }
 
-export function MediaCard({ asset, index, selected, onToggle }: MediaCardProps) {
+export const MediaCard = memo(function MediaCard({ asset, index, selected, onToggle }: MediaCardProps) {
   const [imgError, setImgError] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [downloadMessage, setDownloadMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const isImage = asset.type === "IMAGE";
   const isSvg = asset.extension === "svg";
@@ -31,24 +36,37 @@ export function MediaCard({ asset, index, selected, onToggle }: MediaCardProps) 
     e.stopPropagation();
     if (downloading) return;
     setDownloading(true);
+    setDownloadMessage(null);
     try {
+      const response = await fetch(downloadUrl);
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+        setDownloadMessage(data?.error?.message ?? "Falha ao baixar o arquivo.");
+        return;
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = downloadUrl;
+      a.href = blobUrl;
       a.download = asset.fileName;
       document.body.appendChild(a);
       a.click();
       a.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    } catch {
+      setDownloadMessage("Falha de conexão ao baixar o arquivo.");
     } finally {
-      setTimeout(() => setDownloading(false), 1500);
+      setDownloading(false);
     }
   }
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={cardInitial}
+      animate={cardAnimate}
       transition={{ duration: 0.35, delay: Math.min(index * 0.05, 0.4) }}
-      whileHover={{ y: -4 }}
+      whileHover={cardWhileHover}
       className={`group relative overflow-hidden rounded-xl border transition-all duration-200 ${
         selected
           ? "border-[var(--g-accent-border)] bg-[var(--g-surface-1)] ring-1 ring-[var(--g-accent-border)]"
@@ -136,7 +154,7 @@ export function MediaCard({ asset, index, selected, onToggle }: MediaCardProps) 
             type="button"
             onClick={handleCopy}
             className="relative z-30 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--g-line-hover)] bg-[var(--g-surface-3)] text-[var(--g-muted)] transition-colors hover:border-[var(--g-accent-border)] hover:text-[var(--g-ink)]"
-            title={copied ? "Copiado!" : "Copiar URL"}
+            aria-label={copied ? "URL copiada" : "Copiar URL"}
           >
             {copied ? <Check className="h-4 w-4 text-[var(--g-success)]" /> : <Copy className="h-4 w-4" />}
           </button>
@@ -146,12 +164,13 @@ export function MediaCard({ asset, index, selected, onToggle }: MediaCardProps) 
             rel="noreferrer"
             onClick={(e) => e.stopPropagation()}
             className="relative z-30 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--g-line-hover)] bg-[var(--g-surface-3)] text-[var(--g-muted)] transition-colors hover:border-[var(--g-accent-border)] hover:text-[var(--g-ink)]"
-            title="Abrir original"
+            aria-label="Abrir arquivo original"
           >
             <ExternalLink className="h-4 w-4" />
           </a>
         </div>
+        {downloadMessage && <p className="mt-2 text-xs text-[var(--g-danger)]">{downloadMessage}</p>}
       </div>
     </motion.article>
   );
-}
+});

@@ -1,6 +1,9 @@
 // ─── Link Discovery Types ───
 
 export type LinkCategory = "video_platform" | "same_domain" | "subdomain" | "external";
+export type LinkSource = "anchor" | "button" | "data_attr" | "data_settings" | "onclick";
+export type MediaContentKind = "video" | "live" | "short" | "clip" | "playlist" | "channel" | "embed";
+export type PageKind = "landing" | "hub" | "listing" | "media" | "platform" | "unknown";
 
 export interface LinkCandidate {
   url: string;
@@ -10,7 +13,11 @@ export interface LinkCandidate {
   context: string;
   /** True if inside <nav>, <header>, or <footer> */
   isNavigation: boolean;
-  /** 1 (highest) to 5 (lowest) */
+  source: LinkSource;
+  interactive: boolean;
+  discoveredFrom: string;
+  discoveryReason: string | null;
+  /** 1 (highest) to 6 (lowest) */
   priority: number;
 }
 
@@ -18,18 +25,17 @@ export interface LinkCandidate {
 
 export interface VideoPlatform {
   name: string;
-  /** Regex patterns that identify URLs from this platform */
-  patterns: RegExp[];
-  /** Extract video ID from URL. Returns null if unable. */
-  extractVideoId: (url: string) => string | null;
-  /** Generate thumbnail URL from video ID, if possible */
-  getThumbnailUrl?: (videoId: string) => string;
+  domains: string[];
+  match: (url: URL) => VideoInfo | null;
 }
 
 export interface VideoInfo {
   platform: string;
   videoId: string;
   thumbnailUrl: string | null;
+  canonicalUrl: string;
+  kind: MediaContentKind;
+  confidence: number;
 }
 
 // ─── Embed Discovery Types ───
@@ -51,7 +57,12 @@ export interface EmbeddedMedia {
   platform: string | null;
   videoId: string | null;
   thumbnailUrl: string | null;
+  canonicalUrl: string | null;
+  contentKind: MediaContentKind | null;
+  confidence: number;
   source: EmbedSource;
+  downloadable: boolean;
+  discoveryReason: string | null;
 }
 
 // ─── Crawl Config ───
@@ -77,8 +88,14 @@ export interface MediaItem {
   videoId: string | null;
   title: string | null;
   thumbnailUrl: string | null;
+  canonicalUrl: string | null;
+  contentKind: MediaContentKind | null;
+  confidence: number | null;
   duration: string | null;
   source: string;
+  downloadable: boolean;
+  discoveredFrom: string | null;
+  discoveryReason: string | null;
 }
 
 export interface PageResult {
@@ -88,6 +105,9 @@ export interface PageResult {
   media: MediaItem[];
   error: string | null;
   possibleSpa: boolean;
+  pageKind: PageKind;
+  discoveredFrom: string | null;
+  discoveryReason: string | null;
 }
 
 export interface CrawlResult {
@@ -110,6 +130,9 @@ export interface PageDiscoveredEvent {
   url: string;
   category: LinkCategory;
   depth: number;
+  source: LinkSource;
+  fromUrl: string;
+  discoveryReason: string | null;
 }
 
 export interface PageProcessingEvent {

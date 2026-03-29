@@ -1,4 +1,6 @@
 import * as cheerio from "cheerio";
+import { sanitizeFileName } from "@/lib/files/file-name";
+import { isHttpUrl } from "@/lib/url/public-url";
 import { appConfig } from "@/server/config";
 import {
   classifyByExtension,
@@ -127,6 +129,10 @@ export async function extractMediaFromHtml(html: string, baseUrl: string): Promi
 
 export async function extractMediaAndLinks(html: string, baseUrl: string): Promise<ExtractionResult> {
   const $ = cheerio.load(html);
+  return await extractMediaAndLinksFromDom($, baseUrl);
+}
+
+export async function extractMediaAndLinksFromDom($: cheerio.CheerioAPI, baseUrl: string): Promise<ExtractionResult> {
   const rawRefs: RawMediaRef[] = [];
 
   // img - all lazy-load variants + srcset
@@ -416,8 +422,7 @@ async function normalizeAndDeduplicate(refs: RawMediaRef[], baseUrl: string): Pr
     const resolved = resolveUrl(ref.url, baseUrl);
     if (!resolved) continue;
 
-    // Skip data URIs
-    if (resolved.startsWith("data:")) continue;
+    if (!isHttpUrl(resolved)) continue;
 
     // Deduplicate (strip fragment only, keep query params - they may identify distinct resources)
     const normalized = resolved.split("#")[0];
@@ -438,7 +443,10 @@ async function normalizeAndDeduplicate(refs: RawMediaRef[], baseUrl: string): Pr
     const type = classifyByExtension(ext);
     if (!type) continue;
 
-    const fileName = usedInferred ? `media-${assets.length + 1}.${ext}` : getFileNameFromUrl(resolved, assets.length);
+    const fileName = sanitizeFileName(
+      usedInferred ? `media-${assets.length + 1}.${ext}` : getFileNameFromUrl(resolved, assets.length),
+      `media-${assets.length + 1}.${ext}`,
+    );
 
     assets.push({
       url: resolved,

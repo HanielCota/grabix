@@ -16,6 +16,7 @@ interface DeepCrawlToggleProps {
 
 export function DeepCrawlToggle({ enabled, onEnabledChange, config, onConfigChange }: DeepCrawlToggleProps) {
   const [showOptions, setShowOptions] = useState(false);
+  const optionsId = "deep-crawl-options";
 
   return (
     <div className="space-y-2">
@@ -27,6 +28,7 @@ export function DeepCrawlToggle({ enabled, onEnabledChange, config, onConfigChan
           onEnabledChange(next);
           if (!next) setShowOptions(false);
         }}
+        aria-pressed={enabled}
         className={`mx-auto flex items-center gap-2.5 rounded-xl border px-4 py-2.5 transition-all ${
           enabled
             ? "border-[var(--g-accent-border)] bg-[var(--g-accent-soft)]"
@@ -49,7 +51,7 @@ export function DeepCrawlToggle({ enabled, onEnabledChange, config, onConfigChan
           Busca profunda
         </span>
         <span className={`hidden text-xs sm:inline ${enabled ? "text-[var(--g-sub)]" : "text-[var(--g-muted)]"}`}>
-          Segue links para encontrar mais vídeos
+          Segue links para encontrar mais mídias
         </span>
       </button>
 
@@ -66,6 +68,8 @@ export function DeepCrawlToggle({ enabled, onEnabledChange, config, onConfigChan
             <button
               type="button"
               onClick={() => setShowOptions((v) => !v)}
+              aria-expanded={showOptions}
+              aria-controls={optionsId}
               className="mx-auto flex items-center gap-2 rounded-xl border border-[var(--g-line)] bg-[var(--g-surface-2)] px-4 py-2 text-sm font-medium text-[var(--g-sub)] transition-all hover:border-[var(--g-line-hover)] hover:bg-[var(--g-surface-3)] hover:text-[var(--g-ink)]"
             >
               <SlidersHorizontal size={15} />
@@ -79,6 +83,7 @@ export function DeepCrawlToggle({ enabled, onEnabledChange, config, onConfigChan
             <AnimatePresence>
               {showOptions && (
                 <motion.div
+                  id={optionsId}
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}

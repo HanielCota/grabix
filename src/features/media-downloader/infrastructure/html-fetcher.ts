@@ -1,6 +1,6 @@
 import { appConfig } from "@/server/config";
-import { validateDnsResolution, validateUrlFormat } from "@/server/security";
-import { Errors } from "../domain/errors";
+import { safeFetch } from "@/server/safe-fetch";
+import { AppError, Errors } from "../domain/errors";
 
 const HTTP_ERROR_MESSAGES: Record<number, string> = {
   401: "Essa pagina exige login. O Grabix so acessa paginas publicas.",
@@ -12,7 +12,10 @@ const HTTP_ERROR_MESSAGES: Record<number, string> = {
   503: "O servidor da pagina esta indisponivel no momento. Tenta de novo depois.",
 };
 
-export async function fetchPageHtml(rawUrl: string): Promise<{
+export async function fetchPageHtml(
+  rawUrl: string,
+  signal?: AbortSignal,
+): Promise<{
   html: string;
   resolvedUrl: string;
 }> {
@@ -20,30 +23,28 @@ export async function fetchPageHtml(rawUrl: string): Promise<{
     throw Errors.invalidUrl("URL não pode ser vazia.");
   }
 
-  const url = await validateUrlFormat(rawUrl);
-  await validateDnsResolution(url.hostname);
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), appConfig.limits.fetchTimeoutMs);
-
   let response: Response;
+  let resolvedUrl = rawUrl;
   try {
-    response = await fetch(url.toString(), {
-      signal: controller.signal,
+    const result = await safeFetch(rawUrl, {
+      timeoutMs: appConfig.limits.fetchTimeoutMs,
+      signal,
       headers: {
         "User-Agent": appConfig.userAgent,
         Accept: "text/html,application/xhtml+xml",
         "Accept-Language": "en-US,en;q=0.9",
       },
-      redirect: "follow",
     });
+    response = result.response;
+    resolvedUrl = result.resolvedUrl;
   } catch (err) {
-    if (err instanceof Error && err.name === "AbortError") {
+    if (err instanceof AppError) {
+      throw err;
+    }
+    if (err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError")) {
       throw Errors.fetchFailed("Timeout ao buscar página.");
     }
     throw Errors.fetchFailed("Erro de rede.");
-  } finally {
-    clearTimeout(timeout);
   }
 
   if (!response.ok) {
@@ -73,5 +74,5 @@ export async function fetchPageHtml(rawUrl: string): Promise<{
     throw Errors.htmlTooLarge();
   }
 
-  return { html, resolvedUrl: response.url };
+  return { html, resolvedUrl };
 }

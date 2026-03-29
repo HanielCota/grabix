@@ -260,9 +260,15 @@ function processSSEEvent(raw: string, dispatch: React.Dispatch<Action>) {
     case "page_discovered": {
       const parsed = pageDiscoveredEventSchema.safeParse(data);
       if (!parsed.success) return;
+      const sourceLabel = formatDiscoverySource(parsed.data.source);
+      const reason = parsed.data.discoveryReason ? ` • ${formatDiscoveryReason(parsed.data.discoveryReason)}` : "";
       dispatch({
         type: "LOG",
-        entry: createLogEntry("discovered", parsed.data.url, `Página descoberta (depth ${parsed.data.depth})`),
+        entry: createLogEntry(
+          "discovered",
+          parsed.data.url,
+          `Página descoberta via ${sourceLabel} (depth ${parsed.data.depth})${reason}`,
+        ),
       });
       break;
     }
@@ -335,5 +341,41 @@ function processSSEEvent(raw: string, dispatch: React.Dispatch<Action>) {
       dispatch({ type: "ERROR", error: parsed.data.error });
       break;
     }
+  }
+}
+
+function formatDiscoverySource(source: string): string {
+  switch (source) {
+    case "anchor":
+      return "link";
+    case "button":
+      return "botão";
+    case "data_attr":
+      return "atributo";
+    case "data_settings":
+      return "configuração";
+    case "onclick":
+      return "onclick";
+    default:
+      return "origem";
+  }
+}
+
+function formatDiscoveryReason(reason: string): string {
+  switch (reason) {
+    case "content-hub":
+      return "hub de conteúdo";
+    case "platform-reference":
+      return "referência de plataforma";
+    case "interactive-destination":
+      return "destino interativo";
+    case "onclick-navigation":
+      return "navegação programática";
+    case "player-config":
+      return "configuração de player";
+    case "data-settings-link":
+      return "link em data-settings";
+    default:
+      return reason.replace(/-/g, " ");
   }
 }

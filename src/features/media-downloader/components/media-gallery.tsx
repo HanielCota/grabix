@@ -1,8 +1,8 @@
 "use client";
 
 import { CheckSquare, Download, Image as ImageIcon, Package, Square, Video, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AnalyzePageResult } from "../domain/types";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { MediaAsset, AnalyzePageResult } from "../domain/types";
 import { MediaCard } from "./media-card";
 import { type FilterType, MediaFilters } from "./media-filters";
 
@@ -20,11 +20,21 @@ export function MediaGallery({ result }: MediaGalleryProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const zipAbortRef = useRef<AbortController | null>(null);
 
+  useEffect(() => {
+    return () => {
+      zipAbortRef.current?.abort();
+    };
+  }, []);
+
   // ─── Derived data ───
 
   const counts = useMemo(() => {
-    const img = result.assets.filter((a) => a.type === "IMAGE").length;
-    const vid = result.assets.filter((a) => a.type === "VIDEO").length;
+    let img = 0;
+    let vid = 0;
+    for (const a of result.assets) {
+      if (a.type === "IMAGE") img++;
+      else vid++;
+    }
     return { all: result.assets.length, IMAGE: img, VIDEO: vid };
   }, [result.assets]);
 
@@ -74,10 +84,12 @@ export function MediaGallery({ result }: MediaGalleryProps) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectAll]);
 
+  const selectedAssets = useMemo(() => result.assets.filter((a) => selected.has(a.url)), [result.assets, selected]);
+
   const assetsForZip = useMemo(() => {
     if (selected.size === 0) return filtered;
-    return filtered.filter((a) => selected.has(a.url));
-  }, [filtered, selected]);
+    return selectedAssets;
+  }, [filtered, selected.size, selectedAssets]);
 
   // ─── Handlers ───
 
@@ -152,7 +164,7 @@ export function MediaGallery({ result }: MediaGalleryProps) {
 
   const zipLabel =
     selected.size > 0
-      ? `ZIP (${selected.size} selecionado${selected.size !== 1 ? "s" : ""})`
+      ? `ZIP (${assetsForZip.length} selecionado${assetsForZip.length !== 1 ? "s" : ""})`
       : `ZIP (${filtered.length})`;
 
   // ─── Render ───
@@ -210,7 +222,7 @@ export function MediaGallery({ result }: MediaGalleryProps) {
               <button
                 type="button"
                 onClick={handleDownloadZip}
-                disabled={filtered.length === 0}
+                disabled={assetsForZip.length === 0}
                 className="btn-primary inline-flex h-9 items-center gap-2 rounded-xl px-4 text-xs font-bold"
               >
                 <Package className="h-3.5 w-3.5" />
@@ -276,12 +288,12 @@ export function MediaGallery({ result }: MediaGalleryProps) {
         <>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
             {visible.map((asset, i) => (
-              <MediaCard
+              <MemoMediaCard
                 key={asset.url}
                 asset={asset}
                 index={i}
                 selected={selected.has(asset.url)}
-                onToggle={() => toggleSelect(asset.url)}
+                toggleSelect={toggleSelect}
               />
             ))}
           </div>
@@ -302,6 +314,21 @@ export function MediaGallery({ result }: MediaGalleryProps) {
     </section>
   );
 }
+
+const MemoMediaCard = memo(function MemoMediaCard({
+  asset,
+  index,
+  selected,
+  toggleSelect,
+}: {
+  asset: MediaAsset;
+  index: number;
+  selected: boolean;
+  toggleSelect: (url: string) => void;
+}) {
+  const onToggle = useCallback(() => toggleSelect(asset.url), [toggleSelect, asset.url]);
+  return <MediaCard asset={asset} index={index} selected={selected} onToggle={onToggle} />;
+});
 
 function Stat({
   icon,

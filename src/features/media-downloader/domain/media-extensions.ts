@@ -57,6 +57,15 @@ const MIME_TO_EXTENSION: Record<string, string> = {
   "image/svg+xml": "svg",
 };
 
+const ALLOWED_MEDIA_CONTENT_TYPE_PATTERNS = [
+  "image/",
+  "video/",
+  "application/octet-stream",
+  "application/x-mpegurl",
+  "application/vnd.apple.mpegurl",
+  "application/dash+xml",
+];
+
 export function extensionFromMime(mime: string): string | null {
   const clean = mime.split(";")[0].trim().toLowerCase();
   return MIME_TO_EXTENSION[clean] ?? null;
@@ -64,6 +73,11 @@ export function extensionFromMime(mime: string): string | null {
 
 export function isVideoMime(mime: string): boolean {
   return mime.split(";")[0].trim().toLowerCase().startsWith("video/");
+}
+
+export function isAllowedMediaContentType(contentType: string): boolean {
+  const normalized = contentType.toLowerCase();
+  return ALLOWED_MEDIA_CONTENT_TYPE_PATTERNS.some((pattern) => normalized.includes(pattern));
 }
 
 export function getExtensionFromUrl(url: string): string | null {

@@ -35,6 +35,8 @@ export const Errors = {
 
   fileTooLarge: () => new AppError("Arquivo ultrapassa limite de tamanho.", "FILE_TOO_LARGE"),
 
+  zipTooLarge: () => new AppError("ZIP ultrapassa limite de tamanho.", "ZIP_TOO_LARGE"),
+
   downloadFailed: (reason: string) => new AppError(`Erro no download: ${reason}`, "DOWNLOAD_FAILED", 502),
 
   invalidMediaType: () => new AppError("Tipo de mídia inválido.", "INVALID_MEDIA_TYPE"),

@@ -6,9 +6,19 @@ import { handleApiError } from "@/server/api-utils";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { url, deepCrawl } = analyzePageInputSchema.parse(body);
-    const raw = await analyzePage(url, deepCrawl);
-    const result = analyzePageResultSchema.parse(raw);
+    const parsedInput = analyzePageInputSchema.safeParse(body);
+    if (!parsedInput.success) {
+      return await handleApiError(parsedInput.error);
+    }
+
+    const { url, deepCrawl } = parsedInput.data;
+    const raw = await analyzePage(url, deepCrawl, request.signal);
+    const parsedResult = analyzePageResultSchema.safeParse(raw);
+    if (!parsedResult.success) {
+      return await handleApiError(parsedResult.error);
+    }
+
+    const result = parsedResult.data;
     return NextResponse.json(result);
   } catch (err) {
     return await handleApiError(err);

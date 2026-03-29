@@ -1,4 +1,7 @@
 import * as cheerio from "cheerio";
+import type { MediaAsset } from "@/features/media-downloader/domain/types";
+import { extractMediaAndLinksFromDom } from "@/features/media-downloader/infrastructure/media-extractor";
+import { safeFetch } from "@/server/safe-fetch";
 import { discoverEmbeds } from "./embed-discovery";
 import { discoverLinks } from "./link-discovery";
 import { extractVideoInfo, isVideoPlatformDomain } from "./platform-registry";
@@ -10,11 +13,12 @@ import type {
   EmbeddedMedia,
   LinkCandidate,
   MediaItem,
+  PageKind,
   PageResult,
   SSEEventMap,
   SSEEventName,
 } from "./types";
-import { normalizeUrl, sanitizeUrl } from "./url-utils";
+import { normalizeUrl } from "./url-utils";
 
 const GRABIX_USER_AGENT = "Mozilla/5.0 (compatible; Grabix/1.0; +https://github.com/HanielCota/grabix)";
 const MAX_BODY_SIZE = 5 * 1024 * 1024; // 5MB
@@ -76,7 +80,14 @@ export async function runDeepCrawl(
 
     // Emit discovered events
     for (const link of queue) {
-      emit("page_discovered", { url: link.url, category: link.category, depth });
+      emit("page_discovered", {
+        url: link.url,
+        category: link.category,
+        depth,
+        source: link.source,
+        fromUrl: link.discoveredFrom,
+        discoveryReason: link.discoveryReason,
+      });
     }
 
     // Claim slots before going concurrent to prevent exceeding maxPages
@@ -105,7 +116,17 @@ export async function runDeepCrawl(
           pagesTotal,
         });
 
-        const processed = await processPage(link.url, depth, config, domainTimestamps, emit, signal, seenMedia);
+        const processed = await processPage(
+          link.url,
+          depth,
+          config,
+          domainTimestamps,
+          emit,
+          signal,
+          seenMedia,
+          link.discoveredFrom,
+          link.discoveryReason,
+        );
         allResults.push(processed.result);
 
         if (processed.result.error) {
@@ -161,6 +182,8 @@ async function processPage(
   emit: EventEmitter,
   signal?: AbortSignal,
   seenMedia?: Set<string>,
+  discoveredFrom: string | null = null,
+  discoveryReason: string | null = null,
 ): Promise<ProcessedPage> {
   let html: string;
   try {
@@ -170,7 +193,17 @@ async function processPage(
     const shortError = categorizeError(error);
     emit("page_error", { url, error: shortError, depth });
     return {
-      result: { url, depth, title: null, media: [], error: shortError, possibleSpa: false },
+      result: {
+        url,
+        depth,
+        title: null,
+        media: [],
+        error: shortError,
+        possibleSpa: false,
+        pageKind: "unknown",
+        discoveredFrom,
+        discoveryReason,
+      },
       links: [],
     };
   }
@@ -181,7 +214,17 @@ async function processPage(
   } catch {
     emit("page_error", { url, error: "parse_error", depth });
     return {
-      result: { url, depth, title: null, media: [], error: "parse_error", possibleSpa: false },
+      result: {
+        url,
+        depth,
+        title: null,
+        media: [],
+        error: "parse_error",
+        possibleSpa: false,
+        pageKind: "unknown",
+        discoveredFrom,
+        discoveryReason,
+      },
       links: [],
     };
   }
@@ -189,16 +232,11 @@ async function processPage(
   // Get page title
   const title = $("title").first().text().trim().slice(0, 200) || null;
 
-  // Check for possible SPA
   const textContent = $("body").text().trim();
-  const linkCount = $("a[href]").length;
-  const possibleSpa = textContent.length < MIN_TEXT_LENGTH_FOR_SPA && linkCount < MIN_LINKS_FOR_SPA;
-
-  // Extract embeds
-  const embeds = discoverEmbeds($, url);
-
-  // Discover links (single pass — used for both media extraction and BFS queue)
   const links = discoverLinks($, url);
+  const possibleSpa = textContent.length < MIN_TEXT_LENGTH_FOR_SPA && links.length < MIN_LINKS_FOR_SPA;
+  const embeds = discoverEmbeds($, url);
+  const extractedMedia = await extractMediaAndLinksFromDom($, url);
 
   // Filter out video platform links from structural navigation (nav/header/footer)
   // and ad regions, but keep ones in sidebars/asides (often legitimate content)
@@ -217,30 +255,54 @@ async function processPage(
     emit("media_found", { pageUrl: url, media: item });
   }
 
+  for (const asset of extractedMedia.assets) {
+    addMedia(asset.url, assetToMediaItem(asset, url));
+  }
+
   for (const embed of embeds) {
-    const key = embed.videoId ? `${embed.platform}:${embed.videoId}` : embed.url;
-    addMedia(key, embedToMediaItem(embed));
+    const key = embed.canonicalUrl ?? (embed.videoId ? `${embed.platform}:${embed.videoId}` : embed.url);
+    addMedia(key, embedToMediaItem(embed, url));
   }
 
-  for (const link of videoPlatformLinks) {
-    const info = extractVideoInfo(link.url);
-    if (!info) continue;
+  if (config.followVideoPlatforms) {
+    for (const link of videoPlatformLinks) {
+      const info = extractVideoInfo(link.url);
+      if (!info) continue;
 
-    const key = `${info.platform}:${info.videoId}`;
-    addMedia(key, {
-      url: link.url,
-      type: "video",
-      platform: info.platform,
-      videoId: info.videoId,
-      title: link.anchorText || null,
-      thumbnailUrl: info.thumbnailUrl,
-      duration: null,
-      source: "link",
-    });
+      const key = info.canonicalUrl;
+      addMedia(key, {
+        url: info.canonicalUrl,
+        type: "video",
+        platform: info.platform,
+        videoId: info.videoId,
+        title: link.anchorText || null,
+        thumbnailUrl: info.thumbnailUrl,
+        canonicalUrl: info.canonicalUrl,
+        contentKind: info.kind,
+        confidence: info.confidence,
+        duration: null,
+        source: "link",
+        downloadable: false,
+        discoveredFrom: url,
+        discoveryReason: link.discoveryReason,
+      });
+    }
   }
+
+  const pageKind = classifyPage(url, depth, media, links, videoPlatformLinks, possibleSpa);
 
   return {
-    result: { url, depth, title, media, error: null, possibleSpa },
+    result: {
+      url,
+      depth,
+      title,
+      media,
+      error: null,
+      possibleSpa,
+      pageKind,
+      discoveredFrom,
+      discoveryReason,
+    },
     links,
   };
 }
@@ -253,19 +315,17 @@ async function fetchPage(
   domainTimestamps: Map<string, number>,
   signal?: AbortSignal,
 ): Promise<string> {
-  const sanitized = sanitizeUrl(url);
-
   // Rate limiting per domain
-  await rateLimitDomain(sanitized, domainTimestamps);
+  await rateLimitDomain(url, domainTimestamps);
 
-  const response = await fetch(sanitized, {
-    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
+  const { response } = await safeFetch(url, {
+    timeoutMs,
+    signal,
     headers: {
       "User-Agent": GRABIX_USER_AGENT,
       Accept: "text/html,application/xhtml+xml",
       "Accept-Language": "en-US,en;q=0.9,pt-BR;q=0.8",
     },
-    redirect: "follow",
   });
 
   if (!response.ok) {
@@ -368,7 +428,26 @@ function filterAndMarkLinks(candidates: LinkCandidate[], config: CrawlConfig, vi
 
 // ─── Conversion helpers ───
 
-function embedToMediaItem(embed: EmbeddedMedia): MediaItem {
+function assetToMediaItem(asset: MediaAsset, pageUrl: string): MediaItem {
+  return {
+    url: asset.url,
+    type: asset.type === "IMAGE" ? "image" : "video",
+    platform: null,
+    videoId: null,
+    title: asset.fileName,
+    thumbnailUrl: asset.type === "IMAGE" ? asset.url : null,
+    canonicalUrl: asset.url,
+    contentKind: asset.type === "VIDEO" ? "video" : null,
+    confidence: 0.92,
+    duration: null,
+    source: asset.sourceTag,
+    downloadable: true,
+    discoveredFrom: pageUrl,
+    discoveryReason: "dom-extracted-asset",
+  };
+}
+
+function embedToMediaItem(embed: EmbeddedMedia, pageUrl: string): MediaItem {
   return {
     url: embed.url,
     type: embed.type,
@@ -376,8 +455,14 @@ function embedToMediaItem(embed: EmbeddedMedia): MediaItem {
     videoId: embed.videoId,
     title: null,
     thumbnailUrl: embed.thumbnailUrl,
+    canonicalUrl: embed.canonicalUrl,
+    contentKind: embed.contentKind,
+    confidence: embed.confidence,
     duration: null,
     source: embed.source,
+    downloadable: embed.downloadable,
+    discoveredFrom: pageUrl,
+    discoveryReason: embed.discoveryReason,
   };
 }
 
@@ -393,4 +478,39 @@ function categorizeError(message: string): string {
   if (lower.includes("enotfound") || lower.includes("unreachable") || lower.includes("fetch failed"))
     return "unreachable";
   return "unknown_error";
+}
+
+function classifyPage(
+  url: string,
+  depth: number,
+  media: MediaItem[],
+  links: LinkCandidate[],
+  videoPlatformLinks: LinkCandidate[],
+  possibleSpa: boolean,
+): PageKind {
+  if (isVideoPlatformDomain(url)) return "platform";
+
+  if (media.length > 0 || videoPlatformLinks.length > 0) {
+    return "media";
+  }
+
+  const contentHubLinks = links.filter(
+    (link) =>
+      (link.category === "same_domain" || link.category === "subdomain") &&
+      (link.discoveryReason === "content-hub" ||
+        link.discoveryReason === "interactive-destination" ||
+        link.discoveryReason === "data-settings-link"),
+  ).length;
+
+  const interactiveLinks = links.filter((link) => link.interactive && !link.isNavigation).length;
+
+  if (contentHubLinks >= 3 || (possibleSpa && interactiveLinks >= 2)) {
+    return "hub";
+  }
+
+  if (interactiveLinks > 0 || links.filter((link) => !link.isNavigation).length >= 5) {
+    return depth === 0 ? "landing" : "listing";
+  }
+
+  return depth === 0 ? "landing" : "unknown";
 }

@@ -19,6 +19,7 @@ type ViewState =
   | { status: "idle" }
   | { status: "loading"; url: string }
   | { status: "error"; message: string; url?: string; canRetryDeep?: boolean }
+  | { status: "empty"; message: string; url: string; canRetryDeep?: boolean }
   | { status: "success"; result: AnalyzePageResult }
   | { status: "deep_crawling"; url: string }
   | { status: "deep_complete"; url: string }
@@ -30,6 +31,12 @@ const fadeSlide = {
   exit: { opacity: 0, y: -8 },
   transition: { duration: 0.3 },
 };
+
+const fadeIn = { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0 } };
+const fadeInDeep = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0 } };
+const navTransition = { duration: 0.25 };
+const sectionTransition = { duration: 0.3 };
+const resultTransition = { duration: 0.4 };
 
 export function MediaDownloader() {
   const [state, setState] = useState<ViewState>({ status: "idle" });
@@ -126,7 +133,7 @@ export function MediaDownloader() {
 
       if (parsed.data.totalFound === 0) {
         setState({
-          status: "error",
+          status: "empty",
           message: "Nenhuma mídia pública foi encontrada nesta página.",
           url,
           canRetryDeep: true,
@@ -150,7 +157,12 @@ export function MediaDownloader() {
     deepCrawl.reset();
     setState({ status: "idle" });
     setResetKey((k) => k + 1);
-  }, [deepCrawl]);
+  }, [deepCrawl.reset]);
+
+  const handleAbortCrawl = useCallback(() => {
+    deepCrawl.abort();
+    handleBack();
+  }, [deepCrawl.abort, handleBack]);
 
   // Keyboard shortcut: Esc to go back
   useEffect(() => {
@@ -164,20 +176,21 @@ export function MediaDownloader() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [state.status, handleBack]);
 
-  const currentUrl =
-    state.status === "loading"
-      ? state.url
-      : state.status === "error"
-        ? state.url
-        : state.status === "success"
-          ? state.result.url
-          : state.status === "deep_crawling"
-            ? state.url
-            : state.status === "deep_complete"
-              ? state.url
-              : state.status === "deep_error"
-                ? state.url
-                : null;
+  const currentUrl = (() => {
+    switch (state.status) {
+      case "loading":
+      case "error":
+      case "empty":
+      case "deep_crawling":
+      case "deep_complete":
+      case "deep_error":
+        return state.url;
+      case "success":
+        return state.result.url;
+      default:
+        return null;
+    }
+  })();
 
   const isLoading = state.status === "loading" || state.status === "deep_crawling";
 
@@ -193,17 +206,17 @@ export function MediaDownloader() {
         ) : (
           <motion.div
             key="nav"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25 }}
+            initial={fadeSlide.initial}
+            animate={fadeSlide.animate}
+            exit={fadeSlide.exit}
+            transition={navTransition}
             className="flex items-center gap-3 rounded-2xl border border-[var(--g-line)] bg-[var(--g-surface-1)] p-2"
           >
             <button
               type="button"
               onClick={handleBack}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--g-line-hover)] bg-[var(--g-surface-3)] text-[var(--g-sub)] transition-all hover:bg-[var(--g-line)] hover:text-[var(--g-ink)] hover:border-[var(--g-line-hover)]"
-              title="Voltar"
+              aria-label="Voltar para nova busca"
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
@@ -237,10 +250,8 @@ export function MediaDownloader() {
           {state.status === "loading" && (
             <motion.div
               key="loading"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
+              {...fadeIn}
+              transition={sectionTransition}
               className="rounded-2xl border border-[var(--g-line-hover)] bg-[var(--g-surface-1)] p-6"
             >
               <div className="flex items-center gap-4">
@@ -280,35 +291,20 @@ export function MediaDownloader() {
 
           {/* Deep crawl progress */}
           {state.status === "deep_crawling" && (
-            <motion.div
-              key="deep-crawling"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+            <motion.div key="deep-crawling" {...fadeIn} transition={sectionTransition}>
               <CrawlProgress
                 pagesDone={deepCrawl.progress.pagesDone}
                 pagesTotal={deepCrawl.progress.pagesTotal}
                 mediaFound={deepCrawl.progress.mediaFound}
                 activityLog={deepCrawl.activityLog}
-                onAbort={() => {
-                  deepCrawl.abort();
-                  handleBack();
-                }}
+                onAbort={handleAbortCrawl}
               />
             </motion.div>
           )}
 
           {/* Standard error */}
           {state.status === "error" && (
-            <motion.div
-              key="error"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+            <motion.div key="error" {...fadeIn} transition={sectionTransition}>
               <ErrorMessage
                 message={state.message}
                 onDismiss={handleBack}
@@ -326,41 +322,43 @@ export function MediaDownloader() {
             </motion.div>
           )}
 
+          {/* Standard empty */}
+          {state.status === "empty" && (
+            <motion.div key="empty" {...fadeIn} transition={sectionTransition}>
+              <ErrorMessage
+                title="Nenhuma mídia encontrada"
+                tone="neutral"
+                message={state.message}
+                onDismiss={handleBack}
+                action={
+                  state.canRetryDeep
+                    ? {
+                        label: "Tentar busca profunda",
+                        onClick: () => handleAnalyze(state.url, true),
+                      }
+                    : undefined
+                }
+              />
+            </motion.div>
+          )}
+
           {/* Deep crawl error */}
           {state.status === "deep_error" && (
-            <motion.div
-              key="deep-error"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+            <motion.div key="deep-error" {...fadeIn} transition={sectionTransition}>
               <ErrorMessage message={state.message} onDismiss={handleBack} />
             </motion.div>
           )}
 
           {/* Standard success */}
           {state.status === "success" && (
-            <motion.div
-              key="success"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.4 }}
-            >
+            <motion.div key="success" {...fadeInDeep} transition={resultTransition}>
               <MediaGallery result={state.result} />
             </motion.div>
           )}
 
           {/* Deep crawl success */}
           {state.status === "deep_complete" && deepCrawl.results && (
-            <motion.div
-              key="deep-success"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.4 }}
-            >
+            <motion.div key="deep-success" {...fadeInDeep} transition={resultTransition}>
               <CrawlResults results={deepCrawl.results} />
             </motion.div>
           )}

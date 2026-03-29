@@ -4,12 +4,12 @@ import type { AnalyzePageResult, MediaAsset } from "../domain/types";
 import { fetchPageHtml } from "../infrastructure/html-fetcher";
 import { extractMediaAndLinks, extractMediaFromHtml } from "../infrastructure/media-extractor";
 
-export async function analyzePage(rawUrl: string, deepCrawl = false): Promise<AnalyzePageResult> {
+export async function analyzePage(rawUrl: string, deepCrawl = false, signal?: AbortSignal): Promise<AnalyzePageResult> {
   if (!rawUrl?.trim()) {
     throw Errors.invalidUrl("URL não pode ser vazia.");
   }
 
-  const { html, resolvedUrl } = await fetchPageHtml(rawUrl);
+  const { html, resolvedUrl } = await fetchPageHtml(rawUrl, signal);
 
   if (!html) {
     throw Errors.fetchFailed("HTML vazio recebido.");
@@ -68,7 +68,7 @@ export async function analyzePage(rawUrl: string, deepCrawl = false): Promise<An
         batch.map(async (link) => {
           try {
             // fetchPageHtml already validates URL format and DNS
-            const { html: pageHtml, resolvedUrl: pageUrl } = await fetchPageHtml(link);
+            const { html: pageHtml, resolvedUrl: pageUrl } = await fetchPageHtml(link, signal);
             const pageResult = await extractMediaAndLinks(pageHtml, pageUrl);
 
             return { media: pageResult.assets, links: pageResult.links };
