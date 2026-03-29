@@ -2,7 +2,7 @@
 
 import { CheckSquare, Download, Image as ImageIcon, Package, Square, Video, X } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { MediaAsset, AnalyzePageResult } from "../domain/types";
+import type { AnalyzePageResult, MediaAsset } from "../domain/types";
 import { MediaCard } from "./media-card";
 import { type FilterType, MediaFilters } from "./media-filters";
 

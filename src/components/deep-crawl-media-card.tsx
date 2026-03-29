@@ -17,7 +17,12 @@ interface DeepCrawlMediaCardProps {
   onToggle: () => void;
 }
 
-export const DeepCrawlMediaCard = memo(function DeepCrawlMediaCard({ media, index, selected, onToggle }: DeepCrawlMediaCardProps) {
+export const DeepCrawlMediaCard = memo(function DeepCrawlMediaCard({
+  media,
+  index,
+  selected,
+  onToggle,
+}: DeepCrawlMediaCardProps) {
   const [imgError, setImgError] = useState(false);
   const [copied, setCopied] = useState(false);
   const isVideo = media.type === "video";

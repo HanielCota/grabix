@@ -925,10 +925,7 @@ function formatStatValue(filtered: number, total: number): number | string {
 }
 
 function normalizeText(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(DIACRITICS_PATTERN, "")
-    .toLowerCase();
+  return value.normalize("NFD").replace(DIACRITICS_PATTERN, "").toLowerCase();
 }
 
 function formatPlatformLabel(platform: string): string {

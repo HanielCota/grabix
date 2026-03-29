@@ -17,7 +17,13 @@ interface CrawlProgressProps {
   onAbort: () => void;
 }
 
-export const CrawlProgress = memo(function CrawlProgress({ pagesDone, pagesTotal, mediaFound, activityLog, onAbort }: CrawlProgressProps) {
+export const CrawlProgress = memo(function CrawlProgress({
+  pagesDone,
+  pagesTotal,
+  mediaFound,
+  activityLog,
+  onAbort,
+}: CrawlProgressProps) {
   const percentage = pagesTotal > 0 ? Math.round((pagesDone / pagesTotal) * 100) : 0;
 
   return (
