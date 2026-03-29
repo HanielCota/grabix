@@ -1,3 +1,4 @@
+import { isJsRenderingAvailable, renderPage } from "@/lib/rendering/js-renderer";
 import { appConfig } from "@/server/config";
 import { safeFetch } from "@/server/safe-fetch";
 import { AppError, Errors } from "../domain/errors";
@@ -23,6 +24,45 @@ export async function fetchPageHtml(
     throw Errors.invalidUrl("URL não pode ser vazia.");
   }
 
+  // Try JS rendering first when enabled
+  if (await isJsRenderingAvailable()) {
+    return fetchWithJsRendering(rawUrl, signal);
+  }
+
+  return fetchWithHttp(rawUrl, signal);
+}
+
+async function fetchWithJsRendering(
+  rawUrl: string,
+  signal?: AbortSignal,
+): Promise<{ html: string; resolvedUrl: string }> {
+  try {
+    const result = await renderPage(rawUrl, signal);
+
+    if (!result.html) {
+      throw Errors.fetchFailed("HTML vazio recebido.");
+    }
+
+    if (result.html.length > appConfig.limits.maxHtmlSizeBytes) {
+      throw Errors.htmlTooLarge();
+    }
+
+    return result;
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+
+    if (err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError")) {
+      throw Errors.fetchFailed("Timeout ao renderizar página.");
+    }
+
+    // Fall back to HTTP fetch if JS rendering fails
+    // biome-ignore lint/suspicious/noConsole: intentional fallback warning for operators
+    console.warn(`[Grabix] JS rendering failed for ${rawUrl}, falling back to HTTP: ${err}`);
+    return fetchWithHttp(rawUrl, signal);
+  }
+}
+
+async function fetchWithHttp(rawUrl: string, signal?: AbortSignal): Promise<{ html: string; resolvedUrl: string }> {
   let response: Response;
   let resolvedUrl = rawUrl;
   try {

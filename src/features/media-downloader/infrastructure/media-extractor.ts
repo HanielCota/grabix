@@ -135,9 +135,10 @@ export async function extractMediaAndLinks(html: string, baseUrl: string): Promi
 export async function extractMediaAndLinksFromDom($: cheerio.CheerioAPI, baseUrl: string): Promise<ExtractionResult> {
   const rawRefs: RawMediaRef[] = [];
 
-  // img - all lazy-load variants + srcset
+  // img - all lazy-load variants + srcset (skip those inside <picture>, handled below)
   $("img").each((_, el) => {
     const $el = $(el);
+    if ($el.parent("picture").length) return;
     for (const attr of LAZY_SRC_ATTRS) {
       pushAttr($el, attr, "img", rawRefs);
     }
@@ -155,9 +156,10 @@ export async function extractMediaAndLinksFromDom($: cheerio.CheerioAPI, baseUrl
     if (poster) rawRefs.push({ url: poster, sourceTag: "video[poster]" });
   });
 
-  // source[src] + lazy variants (with MIME-based type inference)
+  // source[src] + lazy variants (skip those inside <picture>, handled below)
   $("source").each((_, el) => {
     const $el = $(el);
+    if ($el.parent("picture").length) return;
     const mimeType = $el.attr("type") ?? "";
     const inferredExt = extensionFromMime(mimeType) ?? undefined;
 
@@ -190,6 +192,53 @@ export async function extractMediaAndLinksFromDom($: cheerio.CheerioAPI, baseUrl
       const src = $inner(imgEl).attr("src");
       if (src) rawRefs.push({ url: src, sourceTag: "noscript img[src]" });
     });
+  });
+
+  // ─── <picture> tags (art direction / responsive images) ───
+
+  $("picture").each((_, el) => {
+    const $pic = $(el);
+
+    // Extract from <source> children (srcset / src)
+    $pic.find("source").each((_, srcEl) => {
+      const $src = $(srcEl);
+      const mimeType = $src.attr("type") ?? "";
+      const inferredExt = extensionFromMime(mimeType) ?? undefined;
+
+      for (const attr of LAZY_SRCSET_ATTRS) {
+        const val = $src.attr(attr);
+        if (!val) continue;
+        for (const url of parseSrcset(val)) {
+          rawRefs.push({ url, sourceTag: `picture source[${attr}]`, inferredExt });
+        }
+      }
+      for (const attr of LAZY_SRC_ATTRS) {
+        pushAttr($src, attr, "picture source", rawRefs, inferredExt);
+      }
+    });
+
+    // Fallback <img> inside <picture>
+    const $img = $pic.find("img");
+    if ($img.length) {
+      for (const attr of LAZY_SRC_ATTRS) {
+        pushAttr($img, attr, "picture img", rawRefs);
+      }
+      pushSrcsetAttrs($img, "picture img", rawRefs);
+    }
+  });
+
+  // ─── CSS background-image (inline styles + <style> blocks) ───
+
+  // Inline styles: any element with style="...background-image: url(...)..."
+  $("[style]").each((_, el) => {
+    const style = $(el).attr("style");
+    if (style) extractCssBackgroundUrls(style, rawRefs);
+  });
+
+  // <style> blocks
+  $("style").each((_, el) => {
+    const css = $(el).html();
+    if (css) extractCssBackgroundUrls(css, rawRefs);
   });
 
   // ─── Embedded videos (iframe, embed, object) ───
@@ -318,6 +367,18 @@ export async function extractMediaAndLinksFromDom($: cheerio.CheerioAPI, baseUrl
   });
 
   return { assets, links: Array.from(links) };
+}
+
+// ─── CSS background-image helper ───
+
+const CSS_BG_URL_PATTERN = /background(?:-image)?\s*:[^;]*url\(\s*["']?([^"')]+?)["']?\s*\)/gi;
+
+function extractCssBackgroundUrls(css: string, refs: RawMediaRef[]): void {
+  for (const match of css.matchAll(CSS_BG_URL_PATTERN)) {
+    const url = match[1].trim();
+    if (!url || url.startsWith("data:")) continue;
+    refs.push({ url, sourceTag: "css[background-image]" });
+  }
 }
 
 // ─── Video URL detection helpers ───

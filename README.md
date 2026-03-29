@@ -322,8 +322,9 @@ git push origin feat/your-feature
 
 ## Roadmap
 
-- [ ] JavaScript rendering (Puppeteer / Playwright) for SPAs
-- [ ] More selectors (`<picture>`, `og:image`, CSS backgrounds)
+- [x] JavaScript rendering (Playwright) for SPAs — optional, via `GRABIX_JS_RENDERING=true`
+- [x] More selectors (`<picture>`, CSS `background-image`)
+- [x] Environment variable configuration (`.env.example`)
 - [ ] Async queue for heavy analyses
 - [ ] Result persistence with database
 - [ ] User session and history
@@ -331,7 +332,6 @@ git push origin feat/your-feature
 - [ ] Temporary storage (S3 / R2) for caching
 - [ ] Structured logging and observability
 - [ ] Redis-backed rate limiting
-- [ ] Environment variable configuration
 
 &nbsp;
 
