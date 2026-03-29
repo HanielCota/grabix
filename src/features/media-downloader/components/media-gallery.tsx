@@ -348,7 +348,7 @@ function Stat({
       <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${bg} ${color}`}>{icon}</div>
       <div>
         <p className={`text-xl font-bold ${color}`}>{value}</p>
-        <p className="text-[11px] font-medium text-[var(--g-muted)]">{label}</p>
+        <p className="text-xs font-medium text-[var(--g-muted)]">{label}</p>
       </div>
     </div>
   );

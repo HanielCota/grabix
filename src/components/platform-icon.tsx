@@ -38,7 +38,7 @@ export function PlatformIcon({ platform, size = 14, showLabel = false }: Platfor
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 ${bg} ${text}`}>
       <Icon size={size - 2} />
-      <span className="text-[10px] font-bold uppercase tracking-wider leading-none">{label}</span>
+      <span className="text-xs font-bold uppercase tracking-wider leading-none">{label}</span>
     </span>
   );
 }

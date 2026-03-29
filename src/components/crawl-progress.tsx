@@ -100,8 +100,8 @@ const LogEntry = memo(function LogEntry({ entry }: { entry: ActivityLogEntry }) 
       className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--g-surface-3)]/50"
     >
       <ActivityIcon type={entry.type} />
-      <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--g-sub)]">{entry.message}</span>
-      <span className="shrink-0 max-w-32 truncate font-mono text-[10px] text-[var(--g-muted)]">
+      <span className="min-w-0 flex-1 truncate text-xs text-[var(--g-sub)]">{entry.message}</span>
+      <span className="shrink-0 max-w-36 truncate font-mono text-xs text-[var(--g-muted)]">
         {truncateUrl(entry.url)}
       </span>
     </motion.div>
@@ -112,7 +112,7 @@ function MiniStat({ label, value, color, bg }: { label: string; value: number | 
   return (
     <div className={`flex items-center gap-2.5 rounded-xl ${bg} px-3 py-2`}>
       <span className={`text-lg font-bold tabular-nums ${color}`}>{value}</span>
-      <span className="text-[10px] font-medium text-[var(--g-muted)]">{label}</span>
+      <span className="text-xs font-medium text-[var(--g-muted)]">{label}</span>
     </div>
   );
 }

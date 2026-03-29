@@ -6,12 +6,14 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
+  Filter,
   Globe,
   Image as ImageIcon,
   Layers,
   Package,
   RotateCcw,
   Search,
+  SlidersHorizontal,
   Square,
   Video,
   X,
@@ -506,145 +508,31 @@ export function CrawlResults({ results }: CrawlResultsProps) {
           />
         </div>
 
-        <div className="mt-5 rounded-2xl border border-[var(--g-line)] bg-[var(--g-surface-2)] p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-[var(--g-sub)]">Filtros</p>
-              <p className="mt-1 text-sm text-[var(--g-muted)]">
-                Refine por página, plataforma, tipo de conteúdo, confiança e disponibilidade.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowEmptyPages((value) => !value)}
-                aria-pressed={showEmptyPages}
-                className={`inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-xs font-bold transition-all ${
-                  showEmptyPages
-                    ? "border-[var(--g-accent-border)] bg-[var(--g-accent-soft)] text-[var(--g-ink)]"
-                    : "border-[var(--g-line)] bg-[var(--g-surface-1)] text-[var(--g-sub)] hover:border-[var(--g-line-hover)] hover:text-[var(--g-ink)]"
-                }`}
-              >
-                {showEmptyPages ? <CheckSquare size={14} /> : <Square size={14} />}
-                Mostrar páginas vazias
-              </button>
-
-              <button
-                type="button"
-                onClick={clearFilters}
-                disabled={!hasActiveFilters}
-                className="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--g-line)] bg-[var(--g-surface-1)] px-4 text-xs font-bold text-[var(--g-sub)] transition-all hover:border-[var(--g-line-hover)] hover:text-[var(--g-ink)] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <RotateCcw size={14} />
-                Limpar filtros
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <label className="space-y-1.5">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--g-sub)]">Buscar</span>
-              <div className="relative">
-                <Search
-                  size={14}
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--g-muted)]"
-                />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.currentTarget.value)}
-                  placeholder="URL, título, plataforma..."
-                  className="h-11 w-full rounded-xl border border-[var(--g-line)] bg-[var(--g-surface-1)] pl-9 pr-3 text-sm text-[var(--g-ink)] outline-none transition-colors placeholder:text-[var(--g-muted)] focus:border-[var(--g-accent-border)]"
-                />
-              </div>
-            </label>
-
-            <FilterField
-              label="Disponibilidade"
-              value={availabilityFilter}
-              onChange={(value) => setAvailabilityFilter(value as AvailabilityFilter)}
-              options={[
-                { value: "all", label: "Todos" },
-                { value: "downloadable", label: "Baixáveis" },
-                { value: "link_only", label: "Só links" },
-              ]}
-            />
-
-            <FilterField
-              label="Tipo de mídia"
-              value={mediaTypeFilter}
-              onChange={(value) => setMediaTypeFilter(value as MediaTypeFilter)}
-              options={[
-                { value: "all", label: "Todos" },
-                { value: "image", label: "Imagens" },
-                { value: "video", label: "Vídeos" },
-              ]}
-            />
-
-            <FilterField
-              label="Plataforma"
-              value={platformFilter}
-              onChange={setPlatformFilter}
-              options={[
-                { value: "all", label: "Todas" },
-                ...availablePlatforms.map((platform) => ({
-                  value: platform,
-                  label: formatPlatformLabel(platform),
-                })),
-              ]}
-            />
-
-            <FilterField
-              label="Conteúdo"
-              value={contentKindFilter}
-              onChange={setContentKindFilter}
-              options={[
-                { value: "all", label: "Todos" },
-                ...availableContentKinds.map((contentKind) => ({
-                  value: contentKind,
-                  label: formatContentKind(contentKind),
-                })),
-              ]}
-            />
-
-            <FilterField
-              label="Tipo de página"
-              value={pageKindFilter}
-              onChange={setPageKindFilter}
-              options={[
-                { value: "all", label: "Todas" },
-                ...availablePageKinds.map((pageKind) => ({
-                  value: pageKind,
-                  label: formatPageKind(pageKind),
-                })),
-              ]}
-            />
-
-            <FilterField
-              label="Confiança"
-              value={confidenceFilter}
-              onChange={(value) => setConfidenceFilter(value as ConfidenceFilter)}
-              options={[
-                { value: "all", label: "Todas" },
-                { value: "high", label: "90%+" },
-                { value: "medium", label: "75%+" },
-                { value: "low", label: "50%+" },
-              ]}
-            />
-
-            <div className="rounded-xl border border-dashed border-[var(--g-line)] bg-[var(--g-surface-1)] px-3 py-2.5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--g-sub)]">Resumo</p>
-              <p className="mt-1 text-sm font-semibold text-[var(--g-ink)]">
-                {pagesWithVisibleMedia} página{pagesWithVisibleMedia !== 1 ? "s" : ""} com mídia visível
-              </p>
-              <p className="mt-1 text-xs text-[var(--g-muted)]">
-                {filteredDownloadableMedia.length} item{filteredDownloadableMedia.length !== 1 ? "s" : ""} baixável
-                {filteredDownloadableMedia.length !== 1 ? "eis" : ""} no recorte atual.
-              </p>
-            </div>
-          </div>
-        </div>
+        <FilterPanel
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          availabilityFilter={availabilityFilter}
+          onAvailabilityChange={(v) => setAvailabilityFilter(v as AvailabilityFilter)}
+          mediaTypeFilter={mediaTypeFilter}
+          onMediaTypeChange={(v) => setMediaTypeFilter(v as MediaTypeFilter)}
+          platformFilter={platformFilter}
+          onPlatformChange={setPlatformFilter}
+          availablePlatforms={availablePlatforms}
+          contentKindFilter={contentKindFilter}
+          onContentKindChange={setContentKindFilter}
+          availableContentKinds={availableContentKinds}
+          pageKindFilter={pageKindFilter}
+          onPageKindChange={setPageKindFilter}
+          availablePageKinds={availablePageKinds}
+          confidenceFilter={confidenceFilter}
+          onConfidenceChange={(v) => setConfidenceFilter(v as ConfidenceFilter)}
+          showEmptyPages={showEmptyPages}
+          onShowEmptyPagesChange={() => setShowEmptyPages((v) => !v)}
+          hasActiveFilters={hasActiveFilters}
+          onClearFilters={clearFilters}
+          pagesWithVisibleMedia={pagesWithVisibleMedia}
+          filteredDownloadableCount={filteredDownloadableMedia.length}
+        />
       </div>
 
       {zipMsg && (
@@ -724,22 +612,22 @@ export function CrawlResults({ results }: CrawlResultsProps) {
                 </span>
 
                 <div className="flex shrink-0 items-center gap-2">
-                  <span className="rounded-md bg-[var(--g-surface-3)] px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-[var(--g-muted)]">
+                  <span className="rounded-md bg-[var(--g-surface-3)] px-1.5 py-0.5 text-xs font-bold tabular-nums text-[var(--g-muted)]">
                     {page.depth}
                   </span>
 
-                  <span className="rounded-md bg-[var(--g-accent-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--g-ink)]">
+                  <span className="rounded-md bg-[var(--g-accent-soft)] px-2 py-0.5 text-xs font-bold text-[var(--g-ink)]">
                     {formatPageKind(page.pageKind)}
                   </span>
 
                   {(hasVisibleMedia || page.media.length > 0) && (
-                    <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                    <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-400">
                       {pageMediaLabel}
                     </span>
                   )}
 
                   {page.error && (
-                    <span className="rounded-md bg-[var(--g-danger-bg)] px-2 py-0.5 text-[10px] font-bold text-[var(--g-danger)]">
+                    <span className="rounded-md bg-[var(--g-danger-bg)] px-2 py-0.5 text-xs font-bold text-[var(--g-danger)]">
                       erro
                     </span>
                   )}
@@ -766,18 +654,18 @@ export function CrawlResults({ results }: CrawlResultsProps) {
                       {(page.discoveredFrom || page.discoveryReason) && (
                         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-[var(--g-line)] bg-[var(--g-surface-2)] px-3 py-2">
                           {page.discoveredFrom && (
-                            <span className="text-[11px] text-[var(--g-sub)]">
+                            <span className="text-xs text-[var(--g-sub)]">
                               Descoberta em{" "}
                               <span className="font-mono text-[var(--g-muted)]">{compactUrl(page.discoveredFrom)}</span>
                             </span>
                           )}
                           {page.discoveryReason && (
-                            <span className="rounded-md bg-[var(--g-surface-3)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--g-muted)]">
+                            <span className="rounded-md bg-[var(--g-surface-3)] px-1.5 py-0.5 text-xs font-bold text-[var(--g-muted)]">
                               {formatDiscoveryReason(page.discoveryReason)}
                             </span>
                           )}
                           {pageMatchesSearch && normalizedQuery.length > 0 && visibleMedia.length > 0 && (
-                            <span className="rounded-md bg-[var(--g-surface-3)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--g-muted)]">
+                            <span className="rounded-md bg-[var(--g-surface-3)] px-1.5 py-0.5 text-xs font-bold text-[var(--g-muted)]">
                               busca bateu na página
                             </span>
                           )}
@@ -785,7 +673,7 @@ export function CrawlResults({ results }: CrawlResultsProps) {
                       )}
 
                       {page.media.length > visibleMedia.length && (
-                        <p className="mb-4 text-[11px] text-[var(--g-muted)]">
+                        <p className="mb-4 text-xs text-[var(--g-muted)]">
                           Exibindo {visibleMedia.length} de {page.media.length} mídia
                           {page.media.length !== 1 ? "s" : ""} desta página.
                         </p>
@@ -795,7 +683,7 @@ export function CrawlResults({ results }: CrawlResultsProps) {
                         type="button"
                         onClick={() => selectAllForPage(downloadableMedia)}
                         disabled={downloadableMedia.length === 0}
-                        className={`mb-4 inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-[11px] font-semibold transition-all ${
+                        className={`mb-4 inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-all ${
                           allPageSelected
                             ? "border-[var(--g-accent-border)] bg-[var(--g-accent-soft)] text-[var(--g-ink)]"
                             : "border-[var(--g-line)] text-[var(--g-sub)] hover:border-[var(--g-line-hover)] hover:text-[var(--g-ink)]"
@@ -826,7 +714,7 @@ export function CrawlResults({ results }: CrawlResultsProps) {
                       {page.possibleSpa && (
                         <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-500/15 bg-amber-500/5 px-3.5 py-2.5">
                           <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-400" />
-                          <p className="text-[11px] leading-relaxed text-amber-300/70">
+                          <p className="text-xs leading-relaxed text-amber-300/70">
                             Esta página pode usar JavaScript para carregar conteúdo. Alguns resultados podem estar
                             incompletos.
                           </p>
@@ -859,7 +747,63 @@ const StableDeepCrawlMediaCard = memo(function StableDeepCrawlMediaCard({
   return <DeepCrawlMediaCard media={media} index={index} selected={selected} onToggle={onToggle} />;
 });
 
-function FilterField({
+/* ─── Chip-based pill selector ─── */
+
+function ChipGroup({
+  label,
+  value,
+  onChange,
+  options,
+  layoutId,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+  layoutId: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <span className="text-xs font-semibold uppercase tracking-wider text-[var(--g-sub)]">{label}</span>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((option) => {
+          const isActive = value === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onChange(option.value)}
+              className={`relative rounded-xl px-3.5 py-2 text-xs font-semibold transition-all ${
+                isActive
+                  ? ""
+                  : "border border-[var(--g-line)] bg-[var(--g-surface-1)] hover:border-[var(--g-line-hover)] hover:bg-[var(--g-surface-3)]"
+              }`}
+            >
+              {isActive && (
+                <motion.span
+                  layoutId={layoutId}
+                  className="absolute inset-0 rounded-xl bg-[var(--g-accent)] shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.35 }}
+                />
+              )}
+              <span
+                className={`relative z-10 transition-colors duration-150 ${
+                  isActive ? "text-[var(--g-accent-text)]" : "text-[var(--g-sub)]"
+                }`}
+              >
+                {option.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Styled select dropdown for dynamic options ─── */
+
+function FilterSelect({
   label,
   value,
   onChange,
@@ -870,21 +814,393 @@ function FilterField({
   onChange: (value: string) => void;
   options: Array<{ value: string; label: string }>;
 }) {
+  const isActive = value !== "all";
   return (
-    <label className="space-y-1.5">
-      <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--g-sub)]">{label}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.currentTarget.value)}
-        className="h-11 w-full rounded-xl border border-[var(--g-line)] bg-[var(--g-surface-1)] px-3 text-sm text-[var(--g-ink)] outline-none transition-colors focus:border-[var(--g-accent-border)]"
+    <div className="space-y-2">
+      <span className="text-xs font-semibold uppercase tracking-wider text-[var(--g-sub)]">{label}</span>
+      <div className="relative">
+        <select
+          value={value}
+          onChange={(event) => onChange(event.currentTarget.value)}
+          className={`h-10 w-full appearance-none rounded-xl border bg-[var(--g-surface-1)] pl-3 pr-8 text-xs font-semibold outline-none transition-all ${
+            isActive
+              ? "border-[var(--g-accent-border)] text-[var(--g-ink)] ring-1 ring-[var(--g-accent-border)]"
+              : "border-[var(--g-line)] text-[var(--g-sub)] hover:border-[var(--g-line-hover)]"
+          } focus:border-[var(--g-accent-border)] focus:ring-1 focus:ring-[var(--g-accent-border)]`}
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          size={13}
+          className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--g-muted)]"
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ─── Active filter chip ─── */
+
+function ActiveChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <motion.span
+      initial={{ scale: 0.85, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0.85, opacity: 0 }}
+      transition={{ duration: 0.15 }}
+      className="inline-flex items-center gap-1 rounded-lg border border-[var(--g-accent-border)] bg-[var(--g-accent-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--g-ink)]"
+    >
+      {label}
+      <button
+        type="button"
+        onClick={onRemove}
+        className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-white/10"
       >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
+        <X size={10} />
+      </button>
+    </motion.span>
+  );
+}
+
+/* ─── Filter Panel ─── */
+
+function FilterPanel({
+  searchQuery,
+  onSearchChange,
+  availabilityFilter,
+  onAvailabilityChange,
+  mediaTypeFilter,
+  onMediaTypeChange,
+  platformFilter,
+  onPlatformChange,
+  availablePlatforms,
+  contentKindFilter,
+  onContentKindChange,
+  availableContentKinds,
+  pageKindFilter,
+  onPageKindChange,
+  availablePageKinds,
+  confidenceFilter,
+  onConfidenceChange,
+  showEmptyPages,
+  onShowEmptyPagesChange,
+  hasActiveFilters,
+  onClearFilters,
+  pagesWithVisibleMedia,
+  filteredDownloadableCount,
+}: {
+  searchQuery: string;
+  onSearchChange: (v: string) => void;
+  availabilityFilter: string;
+  onAvailabilityChange: (v: string) => void;
+  mediaTypeFilter: string;
+  onMediaTypeChange: (v: string) => void;
+  platformFilter: string;
+  onPlatformChange: (v: string) => void;
+  availablePlatforms: string[];
+  contentKindFilter: string;
+  onContentKindChange: (v: string) => void;
+  availableContentKinds: MediaContentKind[];
+  pageKindFilter: string;
+  onPageKindChange: (v: string) => void;
+  availablePageKinds: PageKind[];
+  confidenceFilter: string;
+  onConfidenceChange: (v: string) => void;
+  showEmptyPages: boolean;
+  onShowEmptyPagesChange: () => void;
+  hasActiveFilters: boolean;
+  onClearFilters: () => void;
+  pagesWithVisibleMedia: number;
+  filteredDownloadableCount: number;
+}) {
+  const [isOpen, setIsOpen] = useState(true);
+
+  const activeCount = [
+    availabilityFilter !== "all",
+    mediaTypeFilter !== "all",
+    platformFilter !== "all",
+    contentKindFilter !== "all",
+    pageKindFilter !== "all",
+    confidenceFilter !== "all",
+    searchQuery.trim().length > 0,
+    showEmptyPages,
+  ].filter(Boolean).length;
+
+  const activeChips: Array<{ key: string; label: string; onRemove: () => void }> = [];
+  if (searchQuery.trim())
+    activeChips.push({ key: "search", label: `Busca: "${searchQuery.trim()}"`, onRemove: () => onSearchChange("") });
+  if (availabilityFilter !== "all")
+    activeChips.push({
+      key: "avail",
+      label: availabilityFilter === "downloadable" ? "Baixáveis" : "Só links",
+      onRemove: () => onAvailabilityChange("all"),
+    });
+  if (mediaTypeFilter !== "all")
+    activeChips.push({
+      key: "media",
+      label: mediaTypeFilter === "image" ? "Imagens" : "Vídeos",
+      onRemove: () => onMediaTypeChange("all"),
+    });
+  if (platformFilter !== "all")
+    activeChips.push({
+      key: "platform",
+      label: formatPlatformLabel(platformFilter),
+      onRemove: () => onPlatformChange("all"),
+    });
+  if (contentKindFilter !== "all")
+    activeChips.push({
+      key: "content",
+      label: formatContentKind(contentKindFilter as MediaContentKind),
+      onRemove: () => onContentKindChange("all"),
+    });
+  if (pageKindFilter !== "all")
+    activeChips.push({
+      key: "page",
+      label: formatPageKind(pageKindFilter as PageKind),
+      onRemove: () => onPageKindChange("all"),
+    });
+  if (confidenceFilter !== "all")
+    activeChips.push({
+      key: "conf",
+      label: `Confiança ${confidenceFilter === "high" ? "90%+" : confidenceFilter === "medium" ? "75%+" : "50%+"}`,
+      onRemove: () => onConfidenceChange("all"),
+    });
+  if (showEmptyPages) activeChips.push({ key: "empty", label: "Páginas vazias", onRemove: onShowEmptyPagesChange });
+
+  return (
+    <div className="mt-5 overflow-hidden rounded-2xl border border-[var(--g-line)] bg-[var(--g-surface-2)]">
+      {/* Header */}
+      <button
+        type="button"
+        onClick={() => setIsOpen((v) => !v)}
+        className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-[var(--g-surface-3)]/50"
+      >
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--g-surface-3)] text-[var(--g-sub)]">
+          <SlidersHorizontal size={15} />
+        </span>
+        <div className="flex-1">
+          <span className="text-sm font-bold text-[var(--g-ink)]">Filtros</span>
+          <span className="ml-2 text-xs text-[var(--g-muted)]">
+            {pagesWithVisibleMedia} página{pagesWithVisibleMedia !== 1 ? "s" : ""} &middot; {filteredDownloadableCount}{" "}
+            baixáve{filteredDownloadableCount !== 1 ? "is" : "l"}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {activeCount > 0 && (
+            <motion.span
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--g-accent)] px-1.5 text-xs font-bold text-[var(--g-accent-text)]"
+            >
+              {activeCount}
+            </motion.span>
+          )}
+          <motion.span
+            animate={{ rotate: isOpen ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+            className="text-[var(--g-muted)]"
+          >
+            <ChevronDown size={16} />
+          </motion.span>
+        </div>
+      </button>
+
+      {/* Active filters chips bar */}
+      <AnimatePresence>
+        {!isOpen && activeChips.length > 0 && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden border-t border-[var(--g-line)]"
+          >
+            <div className="flex flex-wrap items-center gap-1.5 px-5 py-3">
+              <Filter size={12} className="mr-1 text-[var(--g-muted)]" />
+              <AnimatePresence mode="popLayout">
+                {activeChips.map((chip) => (
+                  <ActiveChip key={chip.key} label={chip.label} onRemove={chip.onRemove} />
+                ))}
+              </AnimatePresence>
+              <button
+                type="button"
+                onClick={onClearFilters}
+                className="ml-1 rounded-lg px-2 py-1 text-xs font-semibold text-[var(--g-muted)] transition-colors hover:text-[var(--g-ink)]"
+              >
+                Limpar
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Expandable filter body */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-[var(--g-line)] px-5 pb-5 pt-4">
+              {/* Search */}
+              <div className="relative">
+                <Search
+                  size={15}
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--g-muted)]"
+                />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(event) => onSearchChange(event.currentTarget.value)}
+                  placeholder="Buscar por URL, título, plataforma..."
+                  className="h-11 w-full rounded-xl border border-[var(--g-line)] bg-[var(--g-surface-1)] pl-10 pr-10 text-sm text-[var(--g-ink)] outline-none transition-all placeholder:text-[var(--g-muted)] focus:border-[var(--g-accent-border)] focus:ring-1 focus:ring-[var(--g-accent-border)]"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => onSearchChange("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-[var(--g-muted)] transition-colors hover:bg-[var(--g-surface-3)] hover:text-[var(--g-ink)]"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+
+              {/* Chip-based filters */}
+              <div className="mt-4 space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <ChipGroup
+                    label="Tipo de mídia"
+                    layoutId="crawl-media-type"
+                    value={mediaTypeFilter}
+                    onChange={onMediaTypeChange}
+                    options={[
+                      { value: "all", label: "Todos" },
+                      { value: "image", label: "Imagens" },
+                      { value: "video", label: "Vídeos" },
+                    ]}
+                  />
+
+                  <ChipGroup
+                    label="Disponibilidade"
+                    layoutId="crawl-availability"
+                    value={availabilityFilter}
+                    onChange={onAvailabilityChange}
+                    options={[
+                      { value: "all", label: "Todos" },
+                      { value: "downloadable", label: "Baixáveis" },
+                      { value: "link_only", label: "Só links" },
+                    ]}
+                  />
+
+                  <ChipGroup
+                    label="Confiança"
+                    layoutId="crawl-confidence"
+                    value={confidenceFilter}
+                    onChange={onConfidenceChange}
+                    options={[
+                      { value: "all", label: "Todas" },
+                      { value: "high", label: "90%+" },
+                      { value: "medium", label: "75%+" },
+                      { value: "low", label: "50%+" },
+                    ]}
+                  />
+                </div>
+
+                {/* Select-based filters for dynamic lists */}
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <FilterSelect
+                    label="Plataforma"
+                    value={platformFilter}
+                    onChange={onPlatformChange}
+                    options={[
+                      { value: "all", label: "Todas as plataformas" },
+                      ...availablePlatforms.map((p) => ({ value: p, label: formatPlatformLabel(p) })),
+                    ]}
+                  />
+
+                  <FilterSelect
+                    label="Conteúdo"
+                    value={contentKindFilter}
+                    onChange={onContentKindChange}
+                    options={[
+                      { value: "all", label: "Todos os tipos" },
+                      ...availableContentKinds.map((k) => ({ value: k, label: formatContentKind(k) })),
+                    ]}
+                  />
+
+                  <FilterSelect
+                    label="Tipo de página"
+                    value={pageKindFilter}
+                    onChange={onPageKindChange}
+                    options={[
+                      { value: "all", label: "Todas as páginas" },
+                      ...availablePageKinds.map((k) => ({ value: k, label: formatPageKind(k) })),
+                    ]}
+                  />
+                </div>
+              </div>
+
+              {/* Bottom bar: toggle + clear */}
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--g-line)] pt-4">
+                <button
+                  type="button"
+                  onClick={onShowEmptyPagesChange}
+                  aria-pressed={showEmptyPages}
+                  className={`inline-flex h-9 items-center gap-2 rounded-xl border px-3.5 text-xs font-semibold transition-all ${
+                    showEmptyPages
+                      ? "border-[var(--g-accent-border)] bg-[var(--g-accent-soft)] text-[var(--g-ink)]"
+                      : "border-[var(--g-line)] text-[var(--g-sub)] hover:border-[var(--g-line-hover)] hover:text-[var(--g-ink)]"
+                  }`}
+                >
+                  {showEmptyPages ? <CheckSquare size={13} /> : <Square size={13} />}
+                  Mostrar páginas vazias
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onClearFilters}
+                  disabled={!hasActiveFilters}
+                  className="inline-flex h-9 items-center gap-2 rounded-xl px-3.5 text-xs font-semibold text-[var(--g-sub)] transition-all hover:text-[var(--g-ink)] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <RotateCcw size={13} />
+                  Limpar filtros
+                </button>
+              </div>
+
+              {/* Active chips summary */}
+              <AnimatePresence>
+                {activeChips.length > 0 && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-3 flex flex-wrap items-center gap-1.5 rounded-xl border border-dashed border-[var(--g-line)] bg-[var(--g-surface-1)] px-3.5 py-2.5">
+                      <Filter size={12} className="mr-1 text-[var(--g-muted)]" />
+                      <AnimatePresence mode="popLayout">
+                        {activeChips.map((chip) => (
+                          <ActiveChip key={chip.key} label={chip.label} onRemove={chip.onRemove} />
+                        ))}
+                      </AnimatePresence>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
@@ -906,7 +1222,7 @@ function Stat({
       <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${bg} ${color}`}>{icon}</div>
       <div>
         <p className={`text-lg font-bold leading-none ${color}`}>{value}</p>
-        <p className="mt-0.5 text-[10px] font-medium text-[var(--g-muted)]">{label}</p>
+        <p className="mt-0.5 text-xs font-medium text-[var(--g-muted)]">{label}</p>
       </div>
     </div>
   );

@@ -109,12 +109,12 @@ export const MediaCard = memo(function MediaCard({ asset, index, selected, onTog
             ) : (
               <Video className="h-8 w-8" strokeWidth={1.2} />
             )}
-            <span className="text-[10px] font-bold uppercase tracking-[0.15em]">.{asset.extension}</span>
+            <span className="text-xs font-bold uppercase tracking-[0.15em]">.{asset.extension}</span>
           </div>
         )}
 
         <span
-          className={`absolute left-2.5 top-2.5 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm ${
+          className={`absolute left-2.5 top-2.5 rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wider backdrop-blur-sm ${
             selected ? "opacity-0" : ""
           } ${isImage ? "bg-sky-500/20 text-sky-300" : "bg-fuchsia-500/20 text-fuchsia-300"}`}
         >
@@ -127,7 +127,7 @@ export const MediaCard = memo(function MediaCard({ asset, index, selected, onTog
         <h3 className="truncate text-sm font-semibold text-[var(--g-ink)]" title={asset.fileName}>
           {asset.fileName}
         </h3>
-        <p className="mt-1 truncate font-mono text-[11px] text-[var(--g-muted)]" title={asset.url}>
+        <p className="mt-1 truncate font-mono text-xs text-[var(--g-muted)]" title={asset.url}>
           {asset.url}
         </p>
 
