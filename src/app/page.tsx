@@ -54,7 +54,8 @@ export default function Home() {
 
       {/* ── Footer ── */}
       <footer className="mt-16 border-t border-[var(--g-line)] pt-5 text-center text-sm leading-relaxed text-[var(--g-muted)]">
-        Só lê o HTML público. Não pula login, não quebra DRM, não faz mágica.
+        <p>Só lê o HTML público. Não pula login, não quebra DRM, não faz mágica.</p>
+        <p className="mt-1 text-xs opacity-40">v1.0.0</p>
       </footer>
     </main>
   );
