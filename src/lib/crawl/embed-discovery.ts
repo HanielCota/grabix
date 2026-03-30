@@ -338,7 +338,8 @@ function extractStructuredInlinePlayers($: CheerioAPI, add: (m: EmbeddedMedia) =
 
   $("script[src]").each((_, el) => {
     const src = $(el).attr("src");
-    if (!src?.includes("converteai")) return;
+    if (!src) return;
+    if (!src.includes("converteai") && !src.includes("vturb")) return;
 
     const info = extractVideoInfo(src);
     if (!info) return;

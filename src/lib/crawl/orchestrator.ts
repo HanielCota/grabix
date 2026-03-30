@@ -236,7 +236,7 @@ async function processPage(
   const links = discoverLinks($, url);
   const possibleSpa = textContent.length < MIN_TEXT_LENGTH_FOR_SPA && links.length < MIN_LINKS_FOR_SPA;
   const embeds = discoverEmbeds($, url);
-  const extractedMedia = await extractMediaAndLinksFromDom($, url);
+  const extractedMedia = await extractMediaAndLinksFromDom($, url, signal);
 
   // Filter out video platform links from structural navigation (nav/header/footer)
   // and ad regions, but keep ones in sidebars/asides (often legitimate content)

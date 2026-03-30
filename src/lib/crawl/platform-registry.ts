@@ -404,35 +404,57 @@ const niconico: VideoPlatform = {
 
 const vturb: VideoPlatform = {
   name: "vturb",
-  domains: ["scripts.converteai.net", "vturb.com", "vturb.com.br", "api.vturb.com.br"],
+  domains: [
+    "scripts.converteai.net",
+    "cdn.converteai.net",
+    "player.converteai.net",
+    "vturb.com",
+    "vturb.com.br",
+    "api.vturb.com.br",
+    "cdn.vturb.com.br",
+  ],
   match(url) {
     const host = normalizeHost(url.hostname);
     const segments = getPathSegments(url);
 
-    if (host !== "scripts.converteai.net") {
-      return null;
+    // scripts.converteai.net/{accountId}/players/{playerId}/...
+    if (host === "scripts.converteai.net" || host === "player.converteai.net") {
+      if (segments[1] === "players" && segments[2]) {
+        const accountId = segments[0];
+        const playerId = segments[2];
+        return createVideoInfo({
+          platform: "vturb",
+          videoId: playerId,
+          canonicalUrl: `https://scripts.converteai.net/${accountId}/players/${playerId}/embed.html`,
+          kind: "video",
+          confidence: segments.includes("player.js") ? 0.9 : 0.95,
+        });
+      }
+
+      if (segments[1] === "ab-test" && segments[2]) {
+        return createVideoInfo({
+          platform: "vturb",
+          videoId: segments[2],
+          canonicalUrl: url.toString(),
+          kind: "video",
+          confidence: 0.78,
+        });
+      }
     }
 
-    if (segments[1] === "players" && segments[2]) {
-      const accountId = segments[0];
-      const playerId = segments[2];
-      return createVideoInfo({
-        platform: "vturb",
-        videoId: playerId,
-        canonicalUrl: `https://scripts.converteai.net/${accountId}/players/${playerId}/embed.html`,
-        kind: "video",
-        confidence: segments.includes("player.js") ? 0.9 : 0.95,
-      });
-    }
-
-    if (segments[1] === "ab-test" && segments[2]) {
-      return createVideoInfo({
-        platform: "vturb",
-        videoId: segments[2],
-        canonicalUrl: url.toString(),
-        kind: "video",
-        confidence: 0.78,
-      });
+    // cdn.converteai.net or cdn.vturb.com.br - direct video CDN URLs
+    if (host === "cdn.converteai.net" || host === "cdn.vturb.com.br") {
+      const pathStr = url.pathname;
+      if (/\.(m3u8|mp4|webm)(\?|$)/i.test(pathStr)) {
+        const videoId = segments[0] ?? "unknown";
+        return createVideoInfo({
+          platform: "vturb",
+          videoId,
+          canonicalUrl: url.toString(),
+          kind: "video",
+          confidence: 0.96,
+        });
+      }
     }
 
     return null;

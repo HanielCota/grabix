@@ -16,7 +16,7 @@ export async function analyzePage(rawUrl: string, deepCrawl = false, signal?: Ab
   }
 
   if (!deepCrawl) {
-    const assets = await extractMediaFromHtml(html, resolvedUrl);
+    const assets = await extractMediaFromHtml(html, resolvedUrl, signal);
     return {
       url: resolvedUrl,
       totalFound: assets.length,
@@ -30,7 +30,7 @@ export async function analyzePage(rawUrl: string, deepCrawl = false, signal?: Ab
   const maxAssets = appConfig.limits.maxAssets;
 
   // Single cheerio parse for both media and links
-  const initialResult = await extractMediaAndLinks(html, resolvedUrl);
+  const initialResult = await extractMediaAndLinks(html, resolvedUrl, signal);
 
   const visited = new Set<string>([normalizeForDedup(resolvedUrl)]);
   const allAssets = new Map<string, MediaAsset>();
@@ -69,7 +69,7 @@ export async function analyzePage(rawUrl: string, deepCrawl = false, signal?: Ab
           try {
             // fetchPageHtml already validates URL format and DNS
             const { html: pageHtml, resolvedUrl: pageUrl } = await fetchPageHtml(link, signal);
-            const pageResult = await extractMediaAndLinks(pageHtml, pageUrl);
+            const pageResult = await extractMediaAndLinks(pageHtml, pageUrl, signal);
 
             return { media: pageResult.assets, links: pageResult.links };
           } catch {

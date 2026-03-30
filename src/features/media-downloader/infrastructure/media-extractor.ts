@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio";
 import { sanitizeFileName } from "@/lib/files/file-name";
 import { isHttpUrl } from "@/lib/url/public-url";
+import { extractVturbVideos } from "@/lib/vturb/vturb-extractor";
 import { appConfig } from "@/server/config";
 import {
   classifyByExtension,
@@ -122,17 +123,25 @@ export interface ExtractionResult {
   links: string[];
 }
 
-export async function extractMediaFromHtml(html: string, baseUrl: string): Promise<MediaAsset[]> {
-  const result = await extractMediaAndLinks(html, baseUrl);
+export async function extractMediaFromHtml(html: string, baseUrl: string, signal?: AbortSignal): Promise<MediaAsset[]> {
+  const result = await extractMediaAndLinks(html, baseUrl, signal);
   return result.assets;
 }
 
-export async function extractMediaAndLinks(html: string, baseUrl: string): Promise<ExtractionResult> {
+export async function extractMediaAndLinks(
+  html: string,
+  baseUrl: string,
+  signal?: AbortSignal,
+): Promise<ExtractionResult> {
   const $ = cheerio.load(html);
-  return await extractMediaAndLinksFromDom($, baseUrl);
+  return await extractMediaAndLinksFromDom($, baseUrl, signal);
 }
 
-export async function extractMediaAndLinksFromDom($: cheerio.CheerioAPI, baseUrl: string): Promise<ExtractionResult> {
+export async function extractMediaAndLinksFromDom(
+  $: cheerio.CheerioAPI,
+  baseUrl: string,
+  signal?: AbortSignal,
+): Promise<ExtractionResult> {
   const rawRefs: RawMediaRef[] = [];
 
   // img - all lazy-load variants + srcset (skip those inside <picture>, handled below)
@@ -346,6 +355,22 @@ export async function extractMediaAndLinksFromDom($: cheerio.CheerioAPI, baseUrl
       }
     }
   });
+
+  // ─── Vturb (ConvertAI) video extraction ───
+  // Vturb embeds load video URLs dynamically via player.js scripts.
+  // We fetch those scripts and parse the actual video source URLs.
+  try {
+    const vturbVideos = await extractVturbVideos($, baseUrl, signal);
+    for (const video of vturbVideos) {
+      rawRefs.push({
+        url: video.url,
+        sourceTag: `vturb[${video.playerId}]`,
+        inferredExt: inferVideoExtFromUrl(video.url),
+      });
+    }
+  } catch {
+    // Vturb extraction is best-effort — don't fail the whole extraction
+  }
 
   const assets = await normalizeAndDeduplicate(rawRefs, baseUrl);
 
