@@ -8,7 +8,7 @@ const VIDEO_URL_PATTERN =
   /https?:\/\/[^\s"'<>\])]+?\.(mp4|webm|mov|m4v|ogg|avi|mkv|flv|wmv|3gp|ts|f4v|mpg|mpeg|m3u8|mpd)(?:[?#][^\s"'<>\])]*)?/gi;
 
 const PLATFORM_URL_PATTERN =
-  /https?:\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/(?:watch\?[^\s"'<>]+|embed\/[^\s"'<>]+|shorts\/[^\s"'<>]+|live\/[^\s"'<>]+|clip\/[^\s"'<>]+|playlist\?[^\s"'<>]+|@[\w.-]+|channel\/[^\s"'<>]+)|youtu\.be\/[^\s"'<>]+|vimeo\.com\/[^\s"'<>]+|player\.vimeo\.com\/video\/[^\s"'<>]+|holodex\.net\/(?:watch|channel|multiview)\/[^\s"'<>]+|scripts\.converteai\.net\/[^\s"'<>]+)/gi;
+  /https?:\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/(?:watch\?[^\s"'<>]+|embed\/[^\s"'<>]+|shorts\/[^\s"'<>]+|live\/[^\s"'<>]+|clip\/[^\s"'<>]+|playlist\?[^\s"'<>]+|@[\w.-]+|channel\/[^\s"'<>]+)|youtu\.be\/[^\s"'<>]+|vimeo\.com\/[^\s"'<>]+|player\.vimeo\.com\/video\/[^\s"'<>]+|holodex\.net\/(?:watch|channel|multiview)\/[^\s"'<>]+|(?:scripts|cdn|player)\.converteai\.net\/[^\s"'<>]+)/gi;
 
 const VIDEO_DATA_ATTRS = [
   "data-video-src",

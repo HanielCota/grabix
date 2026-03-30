@@ -402,12 +402,28 @@ const niconico: VideoPlatform = {
   },
 };
 
+const VTURB_SCRIPT_HOSTS = new Set(["scripts.converteai.net", "player.converteai.net"]);
+
+const VTURB_CDN_HOSTS = new Set([
+  "cdn.converteai.net",
+  "na-cdn.converteai.net",
+  "cdn-bb.converteai.net",
+  "cdn-k.converteai.net",
+  "cdn-cf-bb.converteai.net",
+  "cdn.vturb.com.br",
+]);
+
 const vturb: VideoPlatform = {
   name: "vturb",
   domains: [
     "scripts.converteai.net",
     "cdn.converteai.net",
+    "na-cdn.converteai.net",
+    "cdn-bb.converteai.net",
+    "cdn-k.converteai.net",
+    "cdn-cf-bb.converteai.net",
     "player.converteai.net",
+    "images.converteai.net",
     "vturb.com",
     "vturb.com.br",
     "api.vturb.com.br",
@@ -418,7 +434,8 @@ const vturb: VideoPlatform = {
     const segments = getPathSegments(url);
 
     // scripts.converteai.net/{accountId}/players/{playerId}/...
-    if (host === "scripts.converteai.net" || host === "player.converteai.net") {
+    // Handles both legacy and v4 paths (v4 has extra /v4/ segment)
+    if (VTURB_SCRIPT_HOSTS.has(host)) {
       if (segments[1] === "players" && segments[2]) {
         const accountId = segments[0];
         const playerId = segments[2];
@@ -442,10 +459,10 @@ const vturb: VideoPlatform = {
       }
     }
 
-    // cdn.converteai.net or cdn.vturb.com.br - direct video CDN URLs
-    if (host === "cdn.converteai.net" || host === "cdn.vturb.com.br") {
+    // CDN hosts - direct video URLs (HLS/MP4)
+    if (VTURB_CDN_HOSTS.has(host)) {
       const pathStr = url.pathname;
-      if (/\.(m3u8|mp4|webm)(\?|$)/i.test(pathStr)) {
+      if (/\.(m3u8|mp4|webm|mpd)(\?|$)/i.test(pathStr)) {
         const videoId = segments[0] ?? "unknown";
         return createVideoInfo({
           platform: "vturb",

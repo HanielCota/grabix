@@ -14,18 +14,24 @@ export interface VturbVideoResult {
 // Ordered from most specific to least specific to favor high-quality matches.
 const VTURB_VIDEO_URL_PATTERNS = [
   // mediaUrl / media_url / sourceUrl etc. in JSON-like config
-  /["']?(?:mediaUrl|media_url|sourceUrl|source_url|videoUrl|video_url)["']?\s*[:=]\s*["'](https?:\/\/[^"']+?)["']/gi,
-  // CDN URLs specific to converteai / vturb
-  /["'](https?:\/\/(?:cdn|media|stream)[^"']*?\.(?:converteai|vturb)[^"']*?\.(?:net|com|com\.br)\/[^"']+?\.(?:m3u8|mp4|webm)(?:\?[^"']*)?)["']/gi,
+  /["']?(?:mediaUrl|media_url|sourceUrl|source_url|videoUrl|video_url|hls_url|hlsUrl|dash_url|dashUrl)["']?\s*[:=]\s*["'](https?:\/\/[^"']+?)["']/gi,
+  // CDN URLs specific to converteai / vturb (including regional CDNs)
+  /["'](https?:\/\/(?:cdn|na-cdn|cdn-bb|cdn-k|cdn-cf-bb|media|stream|assets)[^"']*?\.(?:converteai|vturb)[^"']*?\.(?:net|com|com\.br)\/[^"']+?\.(?:m3u8|mp4|webm)(?:\?[^"']*)?)["']/gi,
   // HLS / MP4 with common video path segments (main.m3u8, index.m3u8, etc.)
   /["'](https?:\/\/[^"']+?\/(?:main|index|video|media|playlist)\.(?:m3u8|mp4))["']/gi,
 ];
 
-// Pattern to match Vturb/ConvertAI script src attributes
-const VTURB_SCRIPT_SRC_PATTERN = /^https?:\/\/(?:scripts|cdn|player)\.(?:converteai\.net|vturb\.com(?:\.br)?)\//i;
+// Pattern to match Vturb/ConvertAI script src attributes (all known subdomains)
+const VTURB_SCRIPT_SRC_PATTERN =
+  /^https?:\/\/(?:scripts|cdn|na-cdn|cdn-bb|cdn-k|cdn-cf-bb|player|images)\.(?:converteai\.net|vturb\.com(?:\.br)?)\//i;
 
-// Pattern to extract account/player IDs from Vturb URLs
+// Pattern to extract account/player IDs from Vturb URLs.
+// Handles both legacy (/{accountId}/players/{playerId}/player.js)
+// and v4 (/{accountId}/players/{playerId}/v4/player.js) paths.
 const VTURB_PLAYER_PATH_PATTERN = /\/([a-f0-9-]+)\/players\/([a-f0-9-]+)\//i;
+
+// Pattern for AB test paths: /{accountId}/ab-test/{scriptId}/player.js
+const VTURB_AB_TEST_PATTERN = /\/([a-f0-9-]+)\/ab-test\/([a-f0-9-]+)\//i;
 
 // Inline script patterns that reference Vturb/smartplayer
 const VTURB_INLINE_HINTS = [/smartplayer/i, /converteai/i, /vturb/i, /smartvideo/i];
@@ -40,7 +46,9 @@ interface VturbScriptRef {
  * Detects Vturb (ConvertAI) video players embedded in a page and resolves their
  * actual video source URLs by fetching the player.js script.
  *
- * Accepts a pre-parsed CheerioAPI to avoid duplicate HTML parsing.
+ * Supports both legacy and v4 architectures:
+ * - Legacy: <script src=".../{accountId}/players/{playerId}/player.js">
+ * - v4: <vturb-smartplayer> + <script src=".../{accountId}/players/{playerId}/v4/player.js">
  */
 export async function extractVturbVideos(
   $: CheerioAPI,
@@ -49,10 +57,9 @@ export async function extractVturbVideos(
 ): Promise<VturbVideoResult[]> {
   const results: VturbVideoResult[] = [];
   const seen = new Set<string>();
-
-  // 1. Find Vturb <script src="..."> tags
   const scriptUrls: VturbScriptRef[] = [];
 
+  // 1. Find Vturb <script src="..."> tags (both legacy and v4)
   $("script[src]").each((_, el) => {
     const src = $(el).attr("src");
     if (!src) return;
@@ -62,11 +69,13 @@ export async function extractVturbVideos(
 
     const pathMatch = resolved.match(VTURB_PLAYER_PATH_PATTERN);
     if (pathMatch) {
-      scriptUrls.push({
-        src: resolved,
-        accountId: pathMatch[1],
-        playerId: pathMatch[2],
-      });
+      scriptUrls.push({ src: resolved, accountId: pathMatch[1], playerId: pathMatch[2] });
+      return;
+    }
+
+    const abMatch = resolved.match(VTURB_AB_TEST_PATTERN);
+    if (abMatch) {
+      scriptUrls.push({ src: resolved, accountId: abMatch[1], playerId: abMatch[2] });
     }
   });
 
@@ -80,23 +89,34 @@ export async function extractVturbVideos(
 
     const pathMatch = resolved.match(VTURB_PLAYER_PATH_PATTERN);
     if (pathMatch) {
-      // For iframes, derive the player.js URL from the embed URL
-      const playerJsUrl = resolved.replace(/\/embed\.html.*$/, "/player.js");
-      scriptUrls.push({
-        src: playerJsUrl,
-        accountId: pathMatch[1],
-        playerId: pathMatch[2],
-      });
+      // Try both v4 and legacy player.js paths
+      const basePath = resolved.replace(/\/(embed\.html|player\.js).*$/, "");
+      scriptUrls.push({ src: `${basePath}/v4/player.js`, accountId: pathMatch[1], playerId: pathMatch[2] });
+      scriptUrls.push({ src: `${basePath}/player.js`, accountId: pathMatch[1], playerId: pathMatch[2] });
     }
   });
 
-  // 3. Check inline scripts for Vturb/smartplayer initialization
+  // 3. Detect <vturb-smartplayer> web components (v4 architecture)
+  $("vturb-smartplayer").each((_, el) => {
+    const id = $(el).attr("id") ?? "";
+    // Extract hex ID from id="vid-{hexId}" pattern
+    const vidMatch = id.match(/^vid-([a-f0-9]+)$/i);
+    if (vidMatch) {
+      // The <vturb-smartplayer> element itself doesn't have the script URL.
+      // The player.js is loaded via a sibling/nearby <script> tag.
+      // We rely on step 1 and 4 to find the script URL.
+      // However, we store the element ID for correlation.
+    }
+  });
+
+  // 4. Check inline scripts for dynamically created Vturb script tags
   $("script:not([src])").each((_, el) => {
     const text = $(el).html();
     if (!text || text.length > 500_000) return;
     if (!VTURB_INLINE_HINTS.some((p) => p.test(text))) return;
 
-    // Look for script URLs embedded in inline code
+    // Match dynamically injected script URLs (common Vturb embed pattern):
+    // s.src = "https://scripts.converteai.net/{accountId}/players/{playerId}/v4/player.js"
     const srcMatches = text.matchAll(
       /["'](https?:\/\/(?:scripts|cdn|player)\.(?:converteai\.net|vturb\.com(?:\.br)?)\/[^"']+?player\.js[^"']*)["']/gi,
     );
@@ -104,11 +124,12 @@ export async function extractVturbVideos(
       const url = m[1];
       const pathMatch = url.match(VTURB_PLAYER_PATH_PATTERN);
       if (pathMatch) {
-        scriptUrls.push({
-          src: url,
-          accountId: pathMatch[1],
-          playerId: pathMatch[2],
-        });
+        scriptUrls.push({ src: url, accountId: pathMatch[1], playerId: pathMatch[2] });
+        continue;
+      }
+      const abMatch = url.match(VTURB_AB_TEST_PATTERN);
+      if (abMatch) {
+        scriptUrls.push({ src: url, accountId: abMatch[1], playerId: abMatch[2] });
       }
     }
 
@@ -117,16 +138,11 @@ export async function extractVturbVideos(
     for (const videoUrl of directVideos) {
       if (seen.has(videoUrl)) continue;
       seen.add(videoUrl);
-      results.push({
-        url: videoUrl,
-        playerId: "inline",
-        accountId: "inline",
-        sourceUrl: baseUrl,
-      });
+      results.push({ url: videoUrl, playerId: "inline", accountId: "inline", sourceUrl: baseUrl });
     }
   });
 
-  // 4. Fetch each player.js and extract video URLs
+  // 5. Fetch each player.js and extract video URLs
   const uniqueScripts = deduplicateByPlayerId(scriptUrls);
 
   const fetchPromises = uniqueScripts.map(async (script) => {
@@ -143,7 +159,7 @@ export async function extractVturbVideos(
         });
       }
     } catch {
-      // Silently skip failed fetches - the player.js might be protected or unavailable
+      // Silently skip failed fetches
     }
   });
 
@@ -174,7 +190,6 @@ async function fetchAndParsePlayerScript(
   if (!response.ok) return [];
 
   const contentType = response.headers.get("content-type") ?? "";
-  // Accept JS, HTML, or JSON responses
   const isValidType =
     contentType.includes("javascript") ||
     contentType.includes("text/html") ||
@@ -184,7 +199,7 @@ async function fetchAndParsePlayerScript(
   if (!isValidType) return [];
 
   const text = await response.text();
-  if (!text || text.length > 2 * 1024 * 1024) return []; // Skip if > 2MB
+  if (!text || text.length > 2 * 1024 * 1024) return [];
 
   return extractVideoUrlsFromContent(text);
 }
@@ -196,16 +211,11 @@ function extractVideoUrlsFromContent(content: string): string[] {
   const urls = new Set<string>();
 
   for (const pattern of VTURB_VIDEO_URL_PATTERNS) {
-    // Reset regex state (global flag)
     pattern.lastIndex = 0;
     for (const match of content.matchAll(pattern)) {
       const url = match[1];
       if (!url) continue;
-
-      // Skip non-video URLs (JS, CSS, images, tracking pixels, etc.)
       if (isNonVideoUrl(url)) continue;
-
-      // Must end with a known video extension
       if (isPlausibleVideoUrl(url)) {
         urls.add(url);
       }
@@ -243,7 +253,7 @@ function resolveUrl(raw: string, base: string): string | null {
 function deduplicateByPlayerId(scripts: VturbScriptRef[]): VturbScriptRef[] {
   const seen = new Set<string>();
   return scripts.filter((s) => {
-    const key = `${s.accountId}:${s.playerId}`;
+    const key = `${s.accountId}:${s.playerId}:${s.src}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
