@@ -248,7 +248,7 @@ export function SiteHeader() {
                     trackConversion("sign_in_start", { location: "header" });
                     signIn("google");
                   }}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--g-brand)] px-3.5 text-xs font-bold text-[var(--g-brand-btn-text)] shadow-[0_6px_18px_rgba(61,213,176,0.16)] transition hover:bg-[var(--g-brand-light)]"
+                  className="btn-primary inline-flex h-10 items-center gap-2 rounded-xl px-3.5 text-xs font-bold"
                 >
                   <GoogleIcon className="h-4 w-4" />
                   Começar grátis
