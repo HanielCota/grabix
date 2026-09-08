@@ -3,6 +3,7 @@ import { Errors } from "../domain/errors";
 import type { AnalyzePageResult, MediaAsset } from "../domain/types";
 import { fetchPageHtml } from "../infrastructure/html-fetcher";
 import { extractMediaAndLinks, extractMediaFromHtml } from "../infrastructure/media-extractor";
+import { extractTweetAssets, getTweetId } from "../infrastructure/twitter-extractor";
 
 export async function analyzePage(
   rawUrl: string,
@@ -12,6 +13,14 @@ export async function analyzePage(
 ): Promise<AnalyzePageResult> {
   if (!rawUrl?.trim()) {
     throw Errors.invalidUrl("URL não pode ser vazia.");
+  }
+
+  // Twitter/X posts are JS apps whose real media (videos, GIFs-as-mp4) is not
+  // in the HTML at all - resolve them through the syndication endpoint instead.
+  // A tweet has no crawlable media pages, so deepCrawl is a no-op here.
+  const tweetId = getTweetId(rawUrl);
+  if (tweetId) {
+    return analyzeTweet(rawUrl, tweetId, signal, opts);
   }
 
   const { html, resolvedUrl } = await fetchPageHtml(rawUrl, signal, opts);
@@ -120,6 +129,55 @@ export async function analyzePage(
     totalFound: finalAssets.length,
     assets: finalAssets,
     pagesScanned,
+  };
+}
+
+// ─── Twitter/X posts ───
+
+/**
+ * Pure merge, exported for tests: concatenates the sources in order, keeping
+ * the first occurrence of each URL and stopping at `max` assets.
+ */
+export function mergeAssetsDeduped(sources: (MediaAsset[] | null)[], max: number): MediaAsset[] {
+  const seen = new Set<string>();
+  const assets: MediaAsset[] = [];
+  if (max <= 0) return assets;
+  for (const source of sources) {
+    for (const asset of source ?? []) {
+      if (seen.has(asset.url)) continue;
+      seen.add(asset.url);
+      assets.push(asset);
+      if (assets.length >= max) return assets;
+    }
+  }
+  return assets;
+}
+
+async function analyzeTweet(
+  rawUrl: string,
+  tweetId: string,
+  signal?: AbortSignal,
+  opts?: { allowJsRendering?: boolean },
+): Promise<AnalyzePageResult> {
+  // Syndication carries the primary media; the HTML page (when it loads at
+  // all) only adds secondary images like og:image. Neither is fatal alone.
+  const [tweetAssets, htmlAssets] = await Promise.all([
+    extractTweetAssets(tweetId, signal).catch(() => [] as MediaAsset[]),
+    fetchPageHtml(rawUrl, signal, opts)
+      .then(({ html, resolvedUrl }) => extractMediaFromHtml(html, resolvedUrl, signal))
+      .catch(() => null),
+  ]);
+
+  const assets = mergeAssetsDeduped([tweetAssets, htmlAssets], appConfig.limits.maxAssets);
+
+  if (assets.length === 0) {
+    throw Errors.fetchFailed("Não foi possível extrair mídia desse post. Ele pode ser privado ou ter sido removido.");
+  }
+
+  return {
+    url: rawUrl,
+    totalFound: assets.length,
+    assets,
   };
 }
 

@@ -20,7 +20,7 @@
     "db:push": "drizzle-kit push",
     "test": "npm run test:unit && npm run test:e2e",
     "test:e2e": "playwright test",
-    "test:unit": "tsx --test \"tests/unit/**/*.test.ts\""
+    "test:unit": "tsx --experimental-test-module-mocks --test \"tests/unit/**/*.test.ts\""
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",
@@ -49,8 +49,10 @@
     "@types/node": "^26.5.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
+    "@types/react-test-renderer": "^19.1.0",
     "drizzle-kit": "^0.31.10",
     "postcss": "^8.5.10",
+    "react-test-renderer": "^19.2.8",
     "tsx": "^4.23.13",
     "typescript": "^6.0.3"
   },
