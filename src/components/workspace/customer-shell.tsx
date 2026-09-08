@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AccountMenu } from "@/components/account-menu";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { trackConversion } from "@/lib/analytics";
 
 const navigation = [
@@ -82,6 +83,7 @@ export function CustomerShell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
         <div className="flex items-center gap-1.5">
+          <ThemeToggle />
           <Link
             href="/#faq"
             title="Ajuda"

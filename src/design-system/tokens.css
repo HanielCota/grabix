@@ -21,6 +21,7 @@
 
   --g-brand: #3dd5b0;
   --g-brand-light: #7cedd0;
+  --g-brand-btn-text: #06241f;
   --g-gold: #f5c451;
   --g-danger: #f87171;
   --g-danger-bg: rgb(248 113 113 / 6%);
@@ -34,6 +35,73 @@
   --g-radius-lg: 1rem;
   --g-shadow-button: 0 1px 2px rgb(0 0 0 / 40%), inset 0 1px 0 rgb(255 255 255 / 12%);
   color-scheme: dark;
+}
+
+html.light,
+html[data-theme="light"] {
+  --g-bg: #f8f9fa;
+  --g-surface-1: #ffffff;
+  --g-surface-2: #f1f3f5;
+  --g-surface-3: #e9ecef;
+  --g-line: #e2e4e8;
+  --g-line-hover: #cbd2d9;
+
+  --g-ink: #09090b;
+  --g-sub: #3f3f46;
+  --g-muted: #52525b;
+  --g-accent: #09090b;
+  --g-accent-hover: #18181b;
+  --g-accent-text: #ffffff;
+  --g-accent-soft: rgb(0 0 0 / 4%);
+  --g-accent-border: rgb(0 0 0 / 12%);
+
+  --g-brand: #0f766e;
+  --g-brand-light: #115e59;
+  --g-brand-btn-text: #ffffff;
+  --g-gold: #92400e;
+  --g-danger: #b91c1c;
+  --g-danger-bg: rgb(185 28 28 / 8%);
+  --g-danger-border: rgb(185 28 28 / 20%);
+  --g-success: #16a34a;
+  --g-success-bg: rgb(22 163 74 / 8%);
+  --g-success-border: rgb(22 163 74 / 20%);
+
+  --g-shadow-button: 0 1px 2px rgb(0 0 0 / 10%), 0 1px 1px rgb(0 0 0 / 6%);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not(.dark):not([data-theme="dark"]) {
+    --g-bg: #f8f9fa;
+    --g-surface-1: #ffffff;
+    --g-surface-2: #f1f3f5;
+    --g-surface-3: #e9ecef;
+    --g-line: #e2e4e8;
+    --g-line-hover: #cbd2d9;
+
+    --g-ink: #09090b;
+    --g-sub: #3f3f46;
+    --g-muted: #52525b;
+    --g-accent: #09090b;
+    --g-accent-hover: #18181b;
+    --g-accent-text: #ffffff;
+    --g-accent-soft: rgb(0 0 0 / 4%);
+    --g-accent-border: rgb(0 0 0 / 12%);
+
+    --g-brand: #0f766e;
+    --g-brand-light: #115e59;
+    --g-brand-btn-text: #ffffff;
+    --g-gold: #92400e;
+    --g-danger: #b91c1c;
+    --g-danger-bg: rgb(185 28 28 / 8%);
+    --g-danger-border: rgb(185 28 28 / 20%);
+    --g-success: #16a34a;
+    --g-success-bg: rgb(22 163 74 / 8%);
+    --g-success-border: rgb(22 163 74 / 20%);
+
+    --g-shadow-button: 0 1px 2px rgb(0 0 0 / 10%), 0 1px 1px rgb(0 0 0 / 6%);
+    color-scheme: light;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

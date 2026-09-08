@@ -4,6 +4,7 @@ import { Crown, Infinity as InfinityIcon, Loader2, LogOut, TriangleAlert } from 
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useState } from "react";
 import { GoogleIcon } from "@/components/icons/google-icon";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { useUpgrade } from "@/components/upgrade/upgrade-context";
 import { useMe } from "@/hooks/use-me";
 import { usePricing } from "@/hooks/use-pricing";
@@ -156,6 +157,17 @@ export default function ContaPage() {
           <p className="truncate text-sm text-[var(--g-muted)]">{user.email}</p>
           <p className="mt-0.5 text-sm text-[var(--g-muted)]">Perfil gerenciado pela sua conta Google.</p>
         </div>
+      </section>
+
+      {/* ── Appearance / Theme ── */}
+      <section className="mt-4 flex flex-col gap-4 rounded-2xl border border-[var(--g-line)] bg-[var(--g-surface-1)] p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-[var(--g-ink)]">Aparência do sistema</p>
+          <p className="mt-0.5 text-xs text-[var(--g-muted)]">
+            Alterne entre modo claro, escuro ou sincronize com as preferências do seu dispositivo.
+          </p>
+        </div>
+        <ThemeToggle variant="segmented" />
       </section>
 
       {/* ── Plan & usage ── */}

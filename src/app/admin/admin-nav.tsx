@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowLeft, CreditCard, LayoutDashboard, Menu, SlidersHor
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 const LINKS = [
   { href: "/admin", label: "Visão geral", icon: LayoutDashboard },
@@ -75,6 +76,10 @@ export function AdminNav() {
         <nav className="mt-10 flex-1" aria-label="Administração">
           <NavLinks />
         </nav>
+        <div className="mb-3 flex items-center justify-between px-3 py-1.5 border-t border-[var(--g-line)] pt-3">
+          <span className="text-xs font-medium text-[var(--g-muted)]">Tema</span>
+          <ThemeToggle />
+        </div>
         <Link
           href="/"
           className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--g-muted)] hover:bg-[var(--g-surface-2)] hover:text-[var(--g-ink)]"
@@ -90,15 +95,18 @@ export function AdminNav() {
           </span>
           Grabix
         </Link>
-        <button
-          type="button"
-          aria-label={open ? "Fechar menu" : "Abrir menu"}
-          aria-expanded={open}
-          onClick={() => setOpen((value) => !value)}
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--g-line-hover)] bg-[var(--g-surface-2)] text-[var(--g-ink)]"
-        >
-          {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <button
+            type="button"
+            aria-label={open ? "Fechar menu" : "Abrir menu"}
+            aria-expanded={open}
+            onClick={() => setOpen((value) => !value)}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--g-line-hover)] bg-[var(--g-surface-2)] text-[var(--g-ink)]"
+          >
+            {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
       {open ? (
         <div className="fixed inset-0 z-50 lg:hidden">

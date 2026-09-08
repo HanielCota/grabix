@@ -26,7 +26,7 @@ export function LandingSections({
         <ul className="grid gap-3">
           {painPoints.map((pain, index) => (
             <li key={pain} className="flex gap-4 rounded-2xl border border-[var(--g-line)] bg-[var(--g-surface-1)] p-5">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#fa7f6a]/10 text-xs font-bold text-[#ff9b8b]">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--g-danger-border)] bg-[var(--g-danger-bg)] text-xs font-bold text-[var(--g-danger)]">
                 0{index + 1}
               </span>
               <p className="pt-0.5 text-sm leading-6 text-[var(--g-sub)]">{pain}</p>
